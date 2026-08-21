@@ -1,0 +1,13 @@
+# Raw statements, Pleo exports and receipt files never go to git.
+data/
+out/
+reference/evidence/
+reference/receipts-dashboard-vercel/*.json
+reference/expense-closeout-pack-2026-07-06/*.csv
+*.pdf
+*.png
+*.jpg
+*.xlsx
+.DS_Store
+__pycache__/
+.env

@@ -1,0 +1,291 @@
+<title>Amex-kön</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f6f7f4;
+    --surface: #ffffff;
+    --surface-2: #eef1ed;
+    --ink: #1c2321;
+    --ink-2: #3c4744;
+    --muted: #5f6b66;
+    --rule: #d8ded9;
+    --rule-strong: #b9c3bd;
+    --accent: #1e5c4b;
+    --accent-ink: #174a3c;
+    --accent-soft: #e3efea;
+    --ok: #2f7a52;      --ok-soft: #e2f1e7;
+    --warn: #a86a12;    --warn-soft: #f7ecd8;
+    --crit: #b03a2e;    --crit-soft: #f7e3e0;
+    --dead: #6b7570;    --dead-soft: #e8ebe9;
+    --unk: #4f5f8a;     --unk-soft: #e4e8f3;
+    --shadow: 0 1px 2px rgba(28, 35, 33, 0.06), 0 8px 24px rgba(28, 35, 33, 0.05);
+    --display: "Bricolage Grotesque", "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+    --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #111614;
+      --surface: #181e1b;
+      --surface-2: #1f2623;
+      --ink: #e6ebe7;
+      --ink-2: #c9d1cc;
+      --muted: #98a39d;
+      --rule: #2a332e;
+      --rule-strong: #3b4741;
+      --accent: #6fbf9e;
+      --accent-ink: #8fd1b6;
+      --accent-soft: #1c2d26;
+      --ok: #7cc79a;    --ok-soft: #1b2f24;
+      --warn: #e0a85a;  --warn-soft: #33271a;
+      --crit: #e2847a;  --crit-soft: #36201d;
+      --dead: #9aa59f;  --dead-soft: #242b28;
+      --unk: #9fb0e0;   --unk-soft: #1f2533;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.25);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #111614;
+    --surface: #181e1b;
+    --surface-2: #1f2623;
+    --ink: #e6ebe7;
+    --ink-2: #c9d1cc;
+    --muted: #98a39d;
+    --rule: #2a332e;
+    --rule-strong: #3b4741;
+    --accent: #6fbf9e;
+    --accent-ink: #8fd1b6;
+    --accent-soft: #1c2d26;
+    --ok: #7cc79a;    --ok-soft: #1b2f24;
+    --warn: #e0a85a;  --warn-soft: #33271a;
+    --crit: #e2847a;  --crit-soft: #36201d;
+    --dead: #9aa59f;  --dead-soft: #242b28;
+    --unk: #9fb0e0;   --unk-soft: #1f2533;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.25);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  code, .num, .id { font-family: var(--mono); font-size: 0.92em; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .wrap { max-width: 76ch; margin: 0 auto; padding: 40px 22px 96px; }
+  @media (min-width: 900px) { .wrap { padding-top: 56px; } }
+
+  header.masthead { display: grid; gap: 14px; padding-bottom: 28px; border-bottom: 1px solid var(--rule-strong); margin-bottom: 36px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  h1 { font-family: var(--display); font-weight: 600; font-size: clamp(38px, 6vw, 56px); line-height: 1.02; margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+  .lede { font-size: 19px; line-height: 1.45; color: var(--ink-2); max-width: 62ch; margin: 0; text-wrap: pretty; }
+
+  h2 { font-family: var(--display); font-weight: 600; font-size: 26px; line-height: 1.15; margin: 56px 0 14px; letter-spacing: -0.01em; text-wrap: balance; }
+  h2 .k { font-family: var(--mono); font-weight: 500; font-size: 12px; letter-spacing: 0.08em; color: var(--muted); display: block; margin-bottom: 8px; text-transform: uppercase; }
+  h3 { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 28px 0 8px; letter-spacing: -0.005em; }
+  p { margin: 0 0 14px; text-wrap: pretty; }
+  ul, ol { margin: 0 0 14px; padding-left: 1.25em; }
+  li { margin: 0 0 8px; }
+  li::marker { color: var(--muted); }
+  .muted { color: var(--muted); }
+
+  .verdict { display: grid; gap: 10px; padding: 0; margin: 0 0 8px; list-style: none; }
+  .verdict li { display: grid; grid-template-columns: 10px 1fr; gap: 14px; align-items: start; padding: 12px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+  .verdict li::before { content: ""; width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--accent); }
+  .verdict li.crit::before { background: var(--crit); }
+  .verdict li.warn::before { background: var(--warn); }
+  .verdict li.ok::before { background: var(--ok); }
+
+  dl.figures { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0 0 10px; border-top: 1px solid var(--rule); }
+  dl.figures > div { display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+  dl.figures dt { margin: 0; font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  dl.figures dt small { font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 4px; letter-spacing: 0; }
+  dl.figures dd { margin: 0; color: var(--ink-2); }
+  dl.figures dd .src { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); margin: 0 0 12px; }
+  table.ledger { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 720px; }
+  table.ledger th { text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; padding: 12px 14px; border-bottom: 1px solid var(--rule-strong); background: var(--surface-2); }
+  table.ledger td { padding: 12px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  table.ledger tr:last-child td { border-bottom: 0; }
+  table.ledger td.c { white-space: nowrap; }
+  table.ledger td.name { font-weight: 600; color: var(--ink); }
+  table.ledger td.name small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border-radius: 999px; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.02em; font-weight: 500; white-space: nowrap; border: 1px solid transparent; }
+  .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .chip.ok   { color: var(--ok);   background: var(--ok-soft); }
+  .chip.warn { color: var(--warn); background: var(--warn-soft); }
+  .chip.crit { color: var(--crit); background: var(--crit-soft); }
+  .chip.dead { color: var(--dead); background: var(--dead-soft); }
+  .chip.unk  { color: var(--unk);  background: var(--unk-soft); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+
+  .lanes { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 18px 0 10px; }
+  @media (min-width: 720px) { .lanes { grid-template-columns: 1fr 1fr; } }
+  .lane { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 16px 14px; display: grid; gap: 8px; align-content: start; }
+  .lane .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); }
+  .lane h4 { font-family: var(--display); font-weight: 600; font-size: 17px; margin: 0; line-height: 1.2; }
+  .lane dl { margin: 0; display: grid; gap: 6px; font-size: 14px; }
+  .lane dl div { display: grid; grid-template-columns: 74px 1fr; gap: 10px; }
+  .lane dt { color: var(--muted); font-size: 12.5px; padding-top: 1px; }
+  .lane dd { margin: 0; color: var(--ink-2); }
+  .lane.prevent { grid-column: 1 / -1; background: var(--accent-soft); border-color: transparent; }
+  .plane { border: 1px dashed var(--rule-strong); border-radius: 8px; padding: 14px 16px; background: var(--surface-2); font-size: 14.5px; color: var(--ink-2); margin: 0 0 12px; }
+  .plane b { color: var(--ink); }
+
+  .qs { counter-reset: q; }
+  ol.q { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 10px; }
+  ol.q > li { counter-increment: q; display: grid; grid-template-columns: 40px 1fr; gap: 12px; padding: 14px 14px 12px 10px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; }
+  ol.q > li::before { content: counter(q, decimal-leading-zero); font-family: var(--mono); font-size: 13px; color: var(--accent-ink); padding-top: 3px; text-align: right; font-weight: 500; }
+  ol.q .ask { font-weight: 600; color: var(--ink); margin: 0 0 4px; }
+  ol.q .why { margin: 0; color: var(--muted); font-size: 14px; }
+  ol.q .why b { color: var(--ink-2); font-weight: 600; }
+  .groupnote { font-size: 14px; color: var(--muted); margin: -4px 0 12px; }
+
+  ul.todo { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 8px; }
+  ul.todo li { display: grid; grid-template-columns: 18px 1fr; gap: 12px; align-items: start; }
+  ul.todo li::before { content: ""; width: 14px; height: 14px; margin-top: 4px; border: 1.5px solid var(--rule-strong); border-radius: 3px; background: var(--surface); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--surface); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; font-size: 15px; }
+  .callout.crit { border-left-color: var(--crit); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
+  footer p { margin-bottom: 8px; }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+  .r { text-align: right; }
+  .mono { font-family: var(--mono); font-size: 13px; }
+  td.why { font-size: 13.5px; color: var(--ink-2); }
+  .ev { font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+  .evn { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .box { display: inline-block; font-family: var(--mono); font-size: 11px; padding: 2px 8px; border: 1px solid var(--rule-strong); border-radius: 4px; color: var(--muted); }
+  table.ledger td.name small { white-space: normal; }
+  .sum { font-family: var(--mono); font-size: 13px; color: var(--muted); margin: -6px 0 10px; }
+</style>
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow"><span>Amex ·1022 and ·2004</span><span>Statements 2026-05-06 to 2026-08-02</span><span>Built 2026-08-21</span></div>
+    <h1>Amex-kön</h1>
+    <p class="lede">Your three Amex exports, normalised and sorted into what needs a receipt, what is already in Pleo, what only you can tag, and what is personal. Every business row was searched for evidence in Gmail. Nothing was forwarded or changed; this is the worklist.</p>
+  </header>
+
+  <h2><span class="k">01</span>Totals</h2>
+  <dl class="figures">
+    <div><dt>137</dt><dd>charges, 263 984,07 SEK, across three statement periods. All 43 rows from the June dashboard reappear here, so there is no gap between the old data and this.<span class="src">Payments to Amex (3, -142 525,86 SEK) and refunds (9, -11 179,95 SEK) are kept out of the totals below.</span></dd></div>
+    <div><dt>23</dt><dd>business rows not yet in Pleo, 118 331,96 SEK. These are the Lane C backlog: Pocket expense or Fortnox pack, your call.<span class="src">15 already have a PDF in Gmail or on file; 6 need a portal download; 2 are paper or member-account receipts.</span></dd></div>
+    <div><dt>9</dt><dd>business rows already entered in Pleo by the July run or paid out earlier, 27 405,32 SEK. Verify only.</dd></div>
+    <div><dt>17</dt><dd>rows only you can tag, 19 687,20 SEK.</dd></div>
+    <div><dt>88</dt><dd>personal rows, 98 559,59 SEK, of which 10 sit on the business card ·1022 (8 959,39 SEK).</dd></div>
+  </dl>
+
+  <h2><span class="k">02</span>Business, not yet in Pleo</h2>
+  <p class="sum">23 rows · 118 331,96 SEK</p>
+  <div class="tablewrap"><table class="ledger"><thead><tr><th>Date</th><th>Card</th><th>SEK</th><th>Merchant</th><th>Evidence</th></tr></thead><tbody>
+<tr><td class="c mono">2026-07-09</td><td class="c mono">·1022</td><td class="c num r">78 429,63</td><td class="name">BAZOOM GROUP AARHUS C<small>Foreign Spend Amount: 6.926,00 EUROPEAN UNION EURO Commission Amount: </small></td><td><span class="chip ok">in Gmail</span><div class="ev">Gmail 19f46d89f4beff39: 200854.pdf (invoice); 19f46d4b3f3b5a11 Stripe receipt #1160-5363</div><div class="evn">EUR 6 926,00 exact. Never forwarded. DPJ link budget.</div></td></tr>
+<tr><td class="c mono">2026-07-27</td><td class="c mono">·1022</td><td class="c num r">12 987,00</td><td class="name">DJI STORE SVERIGE STOCKHOLM</td><td><span class="chip ok">in Gmail</span><div class="ev">Gmail 19fa3ede718a208d: &quot;Se din faktura&quot; link, order 13926 (no PDF attached)</div><div class="evn">Amount confirmed via Amex SafeKey. Click the link to get the PDF.</div></td></tr>
+<tr><td class="c mono">2026-05-28</td><td class="c mono">·2004</td><td class="c num r">8 480,00</td><td class="name">SP MINAAL2026 PORTLAND</td><td><span class="chip warn">portal</span><div class="ev">minaal.com order page, Shop app, or support@minaal.com</div><div class="evn">Shopify checkout; confirmation went to an address not in this mailbox.</div></td></tr>
+<tr><td class="c mono">2026-06-15</td><td class="c mono">·1022</td><td class="c num r">3 663,08</td><td class="name">SIXT SWEDEN POS MALMO</td><td><span class="chip dead">paper</span><div class="ev">Sixt app or My Sixt rentals, else the paper agreement from Malmö</div><div class="evn">No Sixt email in 2026.</div></td></tr>
+<tr><td class="c mono">2026-07-10</td><td class="c mono">·1022</td><td class="c num r">3 570,54</td><td class="name">WINCHERINTERNATIONALCOM STOCKHOLM<small>Foreign Spend Amount: 316,75 EUROPEAN UNION EURO Commission Amount: 70</small></td><td><span class="chip ok">in Gmail</span><div class="ev">Gmail 19f4c1a54c67a79d: receipt_297231.pdf</div><div class="evn">EUR 316,75 exact. Never forwarded.</div></td></tr>
+<tr><td class="c mono">2026-06-22</td><td class="c mono">·2004</td><td class="c num r">2 351,65</td><td class="name">CKO*AHREFS 515942 INTERNET<small>Foreign Spend Amount: 240.00 UNITED STATES DOLLAR Commission Amount: 4</small></td><td><span class="chip ok">in Gmail</span><div class="ev">Gmail 19ef07145b529e35: invoice_AHR20260622-0406.pdf</div><div class="evn">USD 240,00 exact. Vendor shows card token 1006.</div></td></tr>
+<tr><td class="c mono">2026-07-28</td><td class="c mono">·1022</td><td class="c num r">1 569,67</td><td class="name">DJI BARENDRECHT<small>Foreign Spend Amount: 139,00 EUROPEAN UNION EURO Commission Amount: 30</small></td><td><span class="chip warn">portal</span><div class="ev">store.dji.com, My Orders, Invoice</div><div class="evn">DJI Europe B.V. EUR 139,00. No dji.com mail reaches this mailbox.</div></td></tr>
+<tr><td class="c mono">2026-05-30</td><td class="c mono">·1022</td><td class="c num r">1 355,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+<tr><td class="c mono">2026-05-19</td><td class="c mono">·1022</td><td class="c num r">995,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+<tr><td class="c mono">2026-06-01</td><td class="c mono">·1022</td><td class="c num r">756,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+<tr><td class="c mono">2026-07-07</td><td class="c mono">·1022</td><td class="c num r">616,83</td><td class="name">PADDLE.NET* DATAFORSEO LISBOA<small>Foreign Spend Amount: 62.50 UNITED STATES DOLLAR Commission Amount: 12</small></td><td><span class="chip ok">in Gmail</span><div class="ev">Gmail 19f3b7e6f34221c1: invoice_5475-64469_DataForSEO.pdf</div><div class="evn">USD 62,50 exact. Never forwarded.</div></td></tr>
+<tr><td class="c mono">2026-05-28</td><td class="c mono">·1022</td><td class="c num r">595,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+<tr><td class="c mono">2026-05-08</td><td class="c mono">·1022</td><td class="c num r">499,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip warn">portal</span><div class="ev">KINTO Share app, Profile, Payments</div><div class="evn">1 kr verification then 499 kr the same morning: looks like a monthly plan.</div></td></tr>
+<tr><td class="c mono">2026-06-08</td><td class="c mono">·1022</td><td class="c num r">499,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip warn">portal</span><div class="ev">KINTO Share app, Profile, Payments</div><div class="evn">Monthly plan charge; no email, no SafeKey.</div></td></tr>
+<tr><td class="c mono">2026-07-08</td><td class="c mono">·1022</td><td class="c num r">499,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip warn">portal</span><div class="ev">KINTO Share app, Profile, Payments</div><div class="evn">Monthly plan charge; no email, no SafeKey.</div></td></tr>
+<tr><td class="c mono">2026-05-12</td><td class="c mono">·1022</td><td class="c num r">395,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+<tr><td class="c mono">2026-05-21</td><td class="c mono">·1022</td><td class="c num r">282,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+<tr><td class="c mono">2026-07-05</td><td class="c mono">·1022</td><td class="c num r">224,82</td><td class="name">KJELL &amp; CO 121 STOCKHOLM</td><td><span class="chip dead">paper</span><div class="ev">kjell.com Mina köp if the member number was used, else paper</div><div class="evn">Card-present.</div></td></tr>
+<tr><td class="c mono">2026-05-15</td><td class="c mono">·1022</td><td class="c num r">178,75</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+<tr><td class="c mono">2026-05-28</td><td class="c mono">·1022</td><td class="c num r">116,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+<tr><td class="c mono">2026-05-09</td><td class="c mono">·1022</td><td class="c num r">110,99</td><td class="name">AMAZONMKTPLC*NH59J6VH4 WWW.AMAZON.SE</td><td><span class="chip warn">portal</span><div class="ev">amazon.se order history (Logitech Unifying Receiver)</div><div class="evn">Listed as missing invoice in the July pack.</div></td></tr>
+<tr><td class="c mono">2026-05-12</td><td class="c mono">·1022</td><td class="c num r">94,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+<tr><td class="c mono">2026-05-15</td><td class="c mono">·1022</td><td class="c num r">64,00</td><td class="name">KINTO SWEDEN SUNDBYBERG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+</tbody></table></div>
+  <div class="callout crit"><p><b>Two Bazoom items, not one.</b> Nicolina's "about 59 tkr" is the March charge (59 426,85 SEK, inside the 104 133,43 SEK payout that never went through); its invoice is not in Gmail and must come from the Bazoom portal. The 78 429,63 SEK above is the July charge for the DPJ link budget, with invoice 200854.pdf sitting in Gmail. Both are unfiled.</p></div>
+
+  <h2><span class="k">03</span>Already in Pleo, verify only</h2>
+  <p class="sum">9 rows · 27 405,32 SEK</p>
+  <div class="tablewrap"><table class="ledger"><thead><tr><th>Date</th><th>Card</th><th>SEK</th><th>Merchant</th><th>Evidence</th></tr></thead><tbody>
+<tr><td class="c mono">2026-05-06</td><td class="c mono">·1022</td><td class="c num r">109,00</td><td class="name">AMAZONRETAIL*N61QQ6964 WWW.AMAZON.SE</td><td><span class="chip ok">on file</span><div class="ev">Entered in Pleo (July run or pack)</div><div class="evn">Verify in Pleo only.</div></td></tr>
+<tr><td class="c mono">2026-05-06</td><td class="c mono">·2004</td><td class="c num r">2 499,00</td><td class="name">CLASOHLSON.COM/SE INSJON</td><td><span class="chip ok">on file</span><div class="ev">Entered in Pleo (July run or pack)</div><div class="evn">Verify in Pleo only.</div></td></tr>
+<tr><td class="c mono">2026-05-10</td><td class="c mono">·1022</td><td class="c num r">3 514,38</td><td class="name">WINCHERINTERNATIONALCOM STOCKHOLM<small>Foreign Spend Amount: 316,75 EUROPEAN UNION EURO Commission Amount: 68</small></td><td><span class="chip ok">on file</span><div class="ev">Entered in Pleo (July run or pack)</div><div class="evn">Verify in Pleo only.</div></td></tr>
+<tr><td class="c mono">2026-05-11</td><td class="c mono">·1022</td><td class="c num r">110,78</td><td class="name">PADDLE.NET* BARTENDER LISBOA</td><td><span class="chip ok">on file</span><div class="ev">Entered in Pleo (July run or pack)</div><div class="evn">Verify in Pleo only.</div></td></tr>
+<tr><td class="c mono">2026-05-13</td><td class="c mono">·2004</td><td class="c num r">4 173,75</td><td class="name">WWW.ODERLAND.SE GOTEBORG</td><td><span class="chip ok">on file</span><div class="ev">Oderland invoice, entered in Pleo by the July run</div><div class="evn">Issued to 5555 Media AB. Entity to decide.</div></td></tr>
+<tr><td class="c mono">2026-05-25</td><td class="c mono">·1022</td><td class="c num r">8 990,00</td><td class="name">INET.SE ASKIM</td><td><span class="chip ok">on file</span><div class="ev">Entered in Pleo (July run or pack)</div><div class="evn">Verify in Pleo only.</div></td></tr>
+<tr><td class="c mono">2026-06-10</td><td class="c mono">·1022</td><td class="c num r">3 548,41</td><td class="name">WINCHERINTERNATIONALCOM STOCKHOLM<small>Foreign Spend Amount: 316,75 EUROPEAN UNION EURO Commission Amount: 69</small></td><td><span class="chip ok">in Gmail</span><div class="ev">Gmail 19eb18577327dcba: receipt_294930.pdf</div><div class="evn">EUR 316,75 exact. Entered in Pleo by the July run.</div></td></tr>
+<tr><td class="c mono">2026-06-13</td><td class="c mono">·2004</td><td class="c num r">4 173,75</td><td class="name">WWW.ODERLAND.SE GOTEBORG</td><td><span class="chip ok">in Gmail</span><div class="ev">Gmail 19ebfe477652bc57: Invoice-759661.pdf</div><div class="evn">Issued to 5555 Media AB, paid with your Amex. Entity to decide.</div></td></tr>
+<tr><td class="c mono">2026-06-24</td><td class="c mono">·1022</td><td class="c num r">286,25</td><td class="name">WWW.ODERLAND.SE GOTEBORG</td><td><span class="chip ok">on file</span><div class="ev">PDF on file from the July closeout pack</div><div class="evn">Matched by date and amount.</div></td></tr>
+</tbody></table></div>
+  <p class="muted">Wincher 06-10 and Oderland 06-13 were entered as Pocket expenses on 2026-07-06 and also have their PDFs in Gmail now, so they can be checked against what was attached. The July pack listed several of these as "missing invoice"; the pack is superseded for these rows.</p>
+
+  <h2><span class="k">04</span>Only you can tag these</h2>
+  <p class="sum">17 rows · 19 687,20 SEK</p>
+  <div class="tablewrap"><table class="ledger"><thead><tr><th>Date</th><th>Card</th><th>SEK</th><th>Merchant</th><th>Why</th><th>Your call</th></tr></thead><tbody>
+<tr><td class="c mono">2026-06-01</td><td class="c mono">·1022</td><td class="c num r">189,00</td><td class="name">SPOTIFY P430FD5D4C 6844 STOCKHOLM</td><td class="why">Spotify conflict: tagged personal 06-24, reimbursed as business 07-06</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-06-26</td><td class="c mono">·2004</td><td class="c num r">2 138,50</td><td class="name">A DAY&#x27;S MARCH STOCKHOLM</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-06-26</td><td class="c mono">·2004</td><td class="c num r">5 739,00</td><td class="name">ELON.SE OREBRO</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-06-27</td><td class="c mono">·2004</td><td class="c num r">1 208,00</td><td class="name">JARLAPLAN STH 0144 STOCKHOLM</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-06-30</td><td class="c mono">·2004</td><td class="c num r">1 298,00</td><td class="name">XXL SPORT &amp; VIL STOCKHOLM</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-01</td><td class="c mono">·1022</td><td class="c num r">189,00</td><td class="name">SPOTIFYSE STOCKHOLM</td><td class="why">Spotify conflict: tagged personal 06-24, reimbursed as business 07-06</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-02</td><td class="c mono">·2004</td><td class="c num r">2 500,00</td><td class="name">BEST PRACTICE 11 SUNDBYBERG</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-05</td><td class="c mono">·2004</td><td class="c num r">179,00</td><td class="name">3CPAYMENT*SCANDIC SODER SÖDERTÄLJE</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-05</td><td class="c mono">·1022</td><td class="c num r">1 078,00</td><td class="name">IKEA SKARHOLMEN 14108 I -</td><td class="why">consumer merchant on business card 1022</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-05</td><td class="c mono">·1022</td><td class="c num r">2 064,00</td><td class="name">WEBHALLEN SVERIGE AB SOLNA</td><td class="why">consumer merchant on business card 1022</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-06</td><td class="c mono">·2004</td><td class="c num r">35,00</td><td class="name">SCHILLACI KAFFEBAR AB STOCKHOLM</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-07</td><td class="c mono">·1022</td><td class="c num r">62,66</td><td class="name">KINDLE SVCS*DP3YU0MM3 888-802-3080<small>Foreign Spend Amount: 6.35 UNITED STATES DOLLAR Commission Amount: 1,2</small></td><td class="why">consumer merchant on business card 1022</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-11</td><td class="c mono">·2004</td><td class="c num r">120,00</td><td class="name">MCDSTHLMKARLAPLAN 12330 STOCKHOLM</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-11</td><td class="c mono">·2004</td><td class="c num r">1 810,00</td><td class="name">TIVOLI STOCKHOLM</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-13</td><td class="c mono">·2004</td><td class="c num r">40,00</td><td class="name">JOHAN &amp; NYSTRÖM 8101 STOCKHOLM</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-07-27</td><td class="c mono">·2004</td><td class="c num r">848,04</td><td class="name">St1 Vallentuna Smidesv Vallentuna</td><td class="why">unrecognised merchant on personal card 2004</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+<tr><td class="c mono">2026-08-01</td><td class="c mono">·1022</td><td class="c num r">189,00</td><td class="name">SPOTIFYSE STOCKHOLM</td><td class="why">Spotify conflict: tagged personal 06-24, reimbursed as business 07-06</td><td class="c"><span class="box">business</span> <span class="box">personal</span></td></tr>
+</tbody></table></div>
+  <p class="muted">Reply with the dates and a word each. Once tagged, business rows move up to section 02 and I search for their receipts; personal rows drop out for good.</p>
+
+  <h2><span class="k">05</span>Personal spend on the business card</h2>
+  <p class="sum">10 rows · 8 959,39 SEK</p>
+  <div class="tablewrap"><table class="ledger"><thead><tr><th>Date</th><th>Card</th><th>SEK</th><th>Merchant</th><th>Why</th></tr></thead><tbody>
+<tr><td class="c mono">2026-05-09</td><td class="c mono">·1022</td><td class="c num r">65,00</td><td class="name">AMAZONMKTPLC*NH2UD2VU4 WWW.AMAZON.SE</td><td class="why">closeout pack 2026-07-06 (needs-receipt)</td></tr>
+<tr><td class="c mono">2026-05-09</td><td class="c mono">·1022</td><td class="c num r">449,00</td><td class="name">AMAZONRETAIL*NH6M453K4 WWW.AMAZON.SE</td><td class="why">closeout pack 2026-07-06 (needs-receipt)</td></tr>
+<tr><td class="c mono">2026-05-18</td><td class="c mono">·1022</td><td class="c num r">895,40</td><td class="name">CKO*MYPROTEIN 690787 MAGNICE</td><td class="why">closeout pack 2026-07-06 (needs-review)</td></tr>
+<tr><td class="c mono">2026-05-26</td><td class="c mono">·1022</td><td class="c num r">1 185,00</td><td class="name">FLYSAS STOCKHOLM</td><td class="why">closeout pack 2026-07-06 (needs-receipt)</td></tr>
+<tr><td class="c mono">2026-05-26</td><td class="c mono">·1022</td><td class="c num r">1 185,00</td><td class="name">FLYSAS STOCKHOLM</td><td class="why">closeout pack 2026-07-06 (needs-receipt)</td></tr>
+<tr><td class="c mono">2026-05-26</td><td class="c mono">·1022</td><td class="c num r">2 260,00</td><td class="name">SJ INTERNET SALE SJ INT SWEDEN</td><td class="why">closeout pack 2026-07-06 (needs-receipt)</td></tr>
+<tr><td class="c mono">2026-05-29</td><td class="c mono">·1022</td><td class="c num r">1 896,88</td><td class="name">MAXI ICA STORMARKNAD HA SOLLENTUNA</td><td class="why">closeout pack 2026-07-06 (needs-review)</td></tr>
+<tr><td class="c mono">2026-05-31</td><td class="c mono">·1022</td><td class="c num r">686,00</td><td class="name">FLYSAS STOCKHOLM</td><td class="why">closeout pack 2026-07-06 (needs-receipt)</td></tr>
+<tr><td class="c mono">2026-06-10</td><td class="c mono">·1022</td><td class="c num r">185,26</td><td class="name">AMAZONRETAIL*NL9JM1DA4 WWW.AMAZON.SE</td><td class="why">closeout pack 2026-07-06 (ignore)</td></tr>
+<tr><td class="c mono">2026-06-23</td><td class="c mono">·1022</td><td class="c num r">151,85</td><td class="name">ICA NARA HUMLEGARDEN 95 STOCKHOLM</td><td class="why">closeout pack 2026-07-06 (ignore)</td></tr>
+</tbody></table></div>
+  <p class="muted">Tags for May rows come from your 2026-06-24 dashboard edits. These settle against you, not as company expenses, unless you reclassify them.</p>
+
+  <h2><span class="k">06</span>Refunds to pair and payments</h2>
+  <ul>
+    <li><span class="mono">2026-05-12 ·2004 -5 730,00</span> ELGIGANTEN.SE STOCKHOLM</li><li><span class="mono">2026-05-22 ·2004 -2 499,00</span> CLASOHLSON.COM/SE INSJON</li><li><span class="mono">2026-06-16 ·1022 -1 278,00</span> SJ INTERNET SALE SJ INT SWEDEN</li><li><span class="mono">2026-06-16 ·1022 -894,00</span> SJ INTERNET SALE SJ INT SWEDEN</li><li><span class="mono">2026-06-18 ·2004 -3,57</span> GOOGLE *ADS9783627645 CC@GOOGLE.COM</li><li><span class="mono">2026-06-23 ·1022 -158,88</span> MAXI ICA STORMARKNAD HA SOLLENTUNA</li><li><span class="mono">2026-06-24 ·2004 -154,00</span> MAXI ICA STORMARKNAD HA SOLLENTUNA</li><li><span class="mono">2026-07-04 ·2004 -142,50</span> SP WYDE FOOTWEAR MOLNLYCKE</li><li><span class="mono">2026-07-16 ·2004 -320,00</span> SJ INTERNET SALE SJ INT SWEDEN</li>
+  </ul>
+  <p class="muted">Payments to Amex on ·2004: 2026-05-29 -28 886,25, 2026-06-26 -65 077,24, 2026-07-13 -48 562,37 SEK. Ignored for expenses.</p>
+
+  <h2><span class="k">07</span>What this changes in the questions</h2>
+  <ul>
+    <li><b>Amex feed:</b> answered for now. Portal CSV, one file per statement period, same columns every time. The importer is written against this format; drop new files in the same place and they load.</li>
+    <li><b>Oderland entity:</b> invoices #759661 and the May hosting charge are issued to 5555 Media AB but paid with your Amex. Nicolina needs to say which company reimburses you.</li>
+    <li><b>KINTO:</b> the 499 kr on the 8th of May, June and July looks like a monthly plan, not trips. Business? The receipts are app-only.</li>
+    <li><b>Card tokens:</b> Ahrefs shows "card ending 1006" for a charge on ·2004 and KINTO shows "ending 1007"; vendor receipts carry tokens, so matching is by account, amount and date, never by the last four on the receipt.</li>
+    <li><b>Spotify, DJI, Kjell, Webhallen, IKEA:</b> on the business card after the split, so business by your rule; I have flagged them for a one-word confirmation because they are retail.</li>
+  </ul>
+
+  <footer>
+    <p>Source files: activity.csv, activity (1).csv, activity (2).csv as exported from the Amex portal; normalised copy amex-queue-2026-05-06_2026-08-02.csv sent alongside this page. Evidence from read-only Gmail searches on 2026-08-21 with message ids given per row. Nothing was forwarded, labelled or changed.</p>
+  </footer>
+</div>

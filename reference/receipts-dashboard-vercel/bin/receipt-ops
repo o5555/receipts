@@ -1,0 +1,270 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const dataDir = path.join(root, "protected", "data");
+const receiptsFile = path.join(dataDir, "receipts.json");
+const stateFile = path.join(dataDir, "state.json");
+
+const money = new Intl.NumberFormat("sv-SE", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function readJson(file, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+function cardEnding(item) {
+  const raw = String(item.cardEnding || item.account || "").replace(/\D/g, "");
+  return raw.length > 4 ? raw.slice(-4) : raw;
+}
+
+function inferTag(item) {
+  if (item.tag) return item.tag;
+  if (item.status === "ignore") return "ignore";
+  if (item.status === "done" || item.status === "pending-payout") return "business";
+  if (item.source === "KINTO") return "business";
+  const ending = cardEnding(item);
+  if (ending === "1022" || ending === "0122") return "business";
+  if (ending === "2004" && String(item.date || "") >= "2026-06-15") return "personal";
+  return "needs-tag";
+}
+
+function readState() {
+  const db = readJson(stateFile, { state: {} });
+  return db.state && typeof db.state === "object" ? db.state : db;
+}
+
+function readItems() {
+  const db = readJson(receiptsFile, { items: [] });
+  const state = readState();
+  return (db.items || []).map(item => {
+    const merged = { ...item, ...(state[item.id] || {}) };
+    return {
+      ...merged,
+      cardEnding: cardEnding(merged),
+      currency: merged.currency || "SEK",
+      status: merged.status || "ready",
+      tag: merged.tag || inferTag(merged),
+    };
+  });
+}
+
+function parseArgs(argv) {
+  const flags = {};
+  const rest = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) {
+      rest.push(arg);
+      continue;
+    }
+    const [rawKey, rawValue] = arg.slice(2).split("=");
+    const key = rawKey.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    if (rawValue !== undefined) {
+      flags[key] = rawValue;
+    } else if (argv[index + 1] && !argv[index + 1].startsWith("--")) {
+      flags[key] = argv[index + 1];
+      index += 1;
+    } else {
+      flags[key] = true;
+    }
+  }
+  return { flags, rest };
+}
+
+function isKintoLike(item) {
+  return String(item.merchant || item.source || "").toLowerCase().includes("kinto");
+}
+
+function laneFor(item, allItems) {
+  if (item.lane) return item.lane;
+  if (item.status === "ignore" || item.tag === "ignore") return "skip-ignore";
+  if (item.source === "AMEX" && item.tag === "personal") return "personal-reconcile";
+  if (item.source === "AMEX" && (item.status === "done" || item.status === "pending-payout")) {
+    return "already-handled";
+  }
+  if (item.source === "AMEX" && item.tag === "business") return "external-card-fortnox";
+  if (item.source === "KINTO") {
+    const hasAmexMatch = allItems.some(candidate => (
+      candidate.source === "AMEX" &&
+      isKintoLike(candidate) &&
+      candidate.date === item.date &&
+      Number(candidate.amount || 0).toFixed(2) === Number(item.amount || 0).toFixed(2)
+    ));
+    return hasAmexMatch ? "kinto-evidence-matched" : "kinto-source-review";
+  }
+  return "needs-classification";
+}
+
+function withLanes(items) {
+  return items.map(item => ({ ...item, lane: laneFor(item, items) }));
+}
+
+function formatMoney(value, currency = "SEK") {
+  return `${money.format(Number(value || 0))} ${currency || "SEK"}`;
+}
+
+function sum(items) {
+  return items.reduce((total, item) => total + Number(item.amount || 0), 0);
+}
+
+function printJson(value) {
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+function filterItems(items, flags) {
+  const query = String(flags.search || "").toLowerCase();
+  return items.filter(item => {
+    if (flags.lane && item.lane !== flags.lane) return false;
+    if (flags.source && item.source !== flags.source) return false;
+    if (flags.status && item.status !== flags.status) return false;
+    if (flags.tag && item.tag !== flags.tag) return false;
+    if (!query) return true;
+    return [
+      item.id,
+      item.source,
+      item.lane,
+      item.merchant,
+      item.date,
+      item.amount,
+      item.reference,
+      item.invoice,
+      item.purpose,
+      item.action,
+      item.operatorNote,
+    ].join(" ").toLowerCase().includes(query);
+  }).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+}
+
+function row(item) {
+  return [
+    item.lane,
+    item.status,
+    item.tag,
+    item.date || "",
+    item.merchant || item.source || "",
+    formatMoney(item.amount, item.currency),
+    `card ${item.cardEnding || item.account || ""}`,
+    item.id,
+  ].join(" | ");
+}
+
+function actionFor(item) {
+  if (item.lane === "external-card-fortnox" && item.status === "ready") {
+    return "Add to accountant/Fortnox pack with existing PDF evidence. Do not create in Pleo unless Pocket reimbursement is explicitly chosen.";
+  }
+  if (item.lane === "external-card-fortnox" && item.status === "needs-receipt") {
+    return `Find/request invoice first: ${item.action || item.purpose || "missing invoice"}`;
+  }
+  if (item.lane === "external-card-fortnox" && item.status === "blocked") {
+    return `Blocked: ${item.operatorNote || item.action || item.purpose || "waiting on external input"}`;
+  }
+  if (item.lane === "personal-reconcile") {
+    return "Keep out of company expense flow. Reconcile as personal/wrong-card spend unless Oscar/accountant reclassifies it.";
+  }
+  if (item.lane === "already-handled") {
+    return "No new booking now. Keep as evidence of already handled or pending payout.";
+  }
+  if (item.lane === "skip-ignore") {
+    return "Skip or reconcile only. Do not book as a new expense.";
+  }
+  if (item.lane === "kinto-source-review") {
+    return "KINTO source receipt does not match current AMEX rows by date/amount. Review for reimbursement, missing statement coverage, or duplicate.";
+  }
+  if (item.lane === "kinto-evidence-matched") {
+    return "Evidence for an AMEX KINTO row. Use the AMEX transaction row as the accounting basis.";
+  }
+  return item.action || "Review and classify.";
+}
+
+function commandSummary(items, flags) {
+  const filtered = filterItems(items, flags);
+  const byLane = {};
+  const byStatus = {};
+  for (const item of filtered) {
+    byLane[item.lane] = (byLane[item.lane] || 0) + 1;
+    byStatus[item.status] = (byStatus[item.status] || 0) + 1;
+  }
+  const result = {
+    rows: filtered.length,
+    amount: sum(filtered),
+    byLane,
+    byStatus,
+  };
+  if (flags.json) return printJson(result);
+  console.log(`Rows: ${result.rows}`);
+  console.log(`Amount: ${formatMoney(result.amount)}`);
+  console.log(`Lanes: ${Object.entries(byLane).map(([key, value]) => `${key} ${value}`).join(", ")}`);
+  console.log(`Statuses: ${Object.entries(byStatus).map(([key, value]) => `${key} ${value}`).join(", ")}`);
+}
+
+function commandQueues(items, flags) {
+  const lanes = {};
+  for (const item of filterItems(items, flags)) {
+    lanes[item.lane] ||= { rows: 0, amount: 0, statuses: {} };
+    lanes[item.lane].rows += 1;
+    lanes[item.lane].amount += Number(item.amount || 0);
+    lanes[item.lane].statuses[item.status] = (lanes[item.lane].statuses[item.status] || 0) + 1;
+  }
+  if (flags.json) return printJson(lanes);
+  for (const [lane, value] of Object.entries(lanes)) {
+    const statuses = Object.entries(value.statuses).map(([key, count]) => `${key} ${count}`).join(", ");
+    console.log(`${lane}: ${value.rows} rows, ${formatMoney(value.amount)}, ${statuses}`);
+  }
+}
+
+function commandList(items, flags) {
+  const filtered = filterItems(items, flags);
+  if (flags.json) return printJson(filtered);
+  if (!filtered.length) return console.log("No rows found.");
+  for (const item of filtered) console.log(row(item));
+}
+
+function commandActionList(items, flags) {
+  const filtered = filterItems(items, flags);
+  if (flags.json) return printJson(filtered.map(item => ({ ...item, nextAction: actionFor(item) })));
+  if (!filtered.length) return console.log("No rows found.");
+  for (const item of filtered) {
+    console.log(`${row(item)}\n  next: ${actionFor(item)}`);
+  }
+}
+
+function usage() {
+  console.log(`Usage:
+  bin/receipt-ops summary [--lane <lane>] [--status <status>] [--tag <tag>]
+  bin/receipt-ops queues
+  bin/receipt-ops list --lane <lane>
+  bin/receipt-ops action-list --lane <lane>
+
+Primary lanes:
+  external-card-fortnox
+  personal-reconcile
+  already-handled
+  skip-ignore
+  kinto-source-review
+  kinto-evidence-matched`);
+}
+
+const { flags, rest } = parseArgs(process.argv.slice(2));
+const command = rest[0] || "summary";
+const items = withLanes(readItems());
+
+try {
+  if (command === "summary") commandSummary(items, flags);
+  else if (command === "queues") commandQueues(items, flags);
+  else if (command === "list") commandList(items, flags);
+  else if (command === "action-list") commandActionList(items, flags);
+  else if (command === "help" || command === "--help") usage();
+  else throw new Error(`Unknown command: ${command}`);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}

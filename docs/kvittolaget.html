@@ -1,0 +1,368 @@
+<title>Kvittoläget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f6f7f4;
+    --surface: #ffffff;
+    --surface-2: #eef1ed;
+    --ink: #1c2321;
+    --ink-2: #3c4744;
+    --muted: #5f6b66;
+    --rule: #d8ded9;
+    --rule-strong: #b9c3bd;
+    --accent: #1e5c4b;
+    --accent-ink: #174a3c;
+    --accent-soft: #e3efea;
+    --ok: #2f7a52;      --ok-soft: #e2f1e7;
+    --warn: #a86a12;    --warn-soft: #f7ecd8;
+    --crit: #b03a2e;    --crit-soft: #f7e3e0;
+    --dead: #6b7570;    --dead-soft: #e8ebe9;
+    --unk: #4f5f8a;     --unk-soft: #e4e8f3;
+    --shadow: 0 1px 2px rgba(28, 35, 33, 0.06), 0 8px 24px rgba(28, 35, 33, 0.05);
+    --display: "Bricolage Grotesque", "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+    --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #111614;
+      --surface: #181e1b;
+      --surface-2: #1f2623;
+      --ink: #e6ebe7;
+      --ink-2: #c9d1cc;
+      --muted: #98a39d;
+      --rule: #2a332e;
+      --rule-strong: #3b4741;
+      --accent: #6fbf9e;
+      --accent-ink: #8fd1b6;
+      --accent-soft: #1c2d26;
+      --ok: #7cc79a;    --ok-soft: #1b2f24;
+      --warn: #e0a85a;  --warn-soft: #33271a;
+      --crit: #e2847a;  --crit-soft: #36201d;
+      --dead: #9aa59f;  --dead-soft: #242b28;
+      --unk: #9fb0e0;   --unk-soft: #1f2533;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.25);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #111614;
+    --surface: #181e1b;
+    --surface-2: #1f2623;
+    --ink: #e6ebe7;
+    --ink-2: #c9d1cc;
+    --muted: #98a39d;
+    --rule: #2a332e;
+    --rule-strong: #3b4741;
+    --accent: #6fbf9e;
+    --accent-ink: #8fd1b6;
+    --accent-soft: #1c2d26;
+    --ok: #7cc79a;    --ok-soft: #1b2f24;
+    --warn: #e0a85a;  --warn-soft: #33271a;
+    --crit: #e2847a;  --crit-soft: #36201d;
+    --dead: #9aa59f;  --dead-soft: #242b28;
+    --unk: #9fb0e0;   --unk-soft: #1f2533;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.25);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  code, .num, .id { font-family: var(--mono); font-size: 0.92em; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .wrap { max-width: 76ch; margin: 0 auto; padding: 40px 22px 96px; }
+  @media (min-width: 900px) { .wrap { padding-top: 56px; } }
+
+  header.masthead { display: grid; gap: 14px; padding-bottom: 28px; border-bottom: 1px solid var(--rule-strong); margin-bottom: 36px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  h1 { font-family: var(--display); font-weight: 600; font-size: clamp(38px, 6vw, 56px); line-height: 1.02; margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+  .lede { font-size: 19px; line-height: 1.45; color: var(--ink-2); max-width: 62ch; margin: 0; text-wrap: pretty; }
+
+  h2 { font-family: var(--display); font-weight: 600; font-size: 26px; line-height: 1.15; margin: 56px 0 14px; letter-spacing: -0.01em; text-wrap: balance; }
+  h2 .k { font-family: var(--mono); font-weight: 500; font-size: 12px; letter-spacing: 0.08em; color: var(--muted); display: block; margin-bottom: 8px; text-transform: uppercase; }
+  h3 { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 28px 0 8px; letter-spacing: -0.005em; }
+  p { margin: 0 0 14px; text-wrap: pretty; }
+  ul, ol { margin: 0 0 14px; padding-left: 1.25em; }
+  li { margin: 0 0 8px; }
+  li::marker { color: var(--muted); }
+  .muted { color: var(--muted); }
+
+  .verdict { display: grid; gap: 10px; padding: 0; margin: 0 0 8px; list-style: none; }
+  .verdict li { display: grid; grid-template-columns: 10px 1fr; gap: 14px; align-items: start; padding: 12px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+  .verdict li::before { content: ""; width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--accent); }
+  .verdict li.crit::before { background: var(--crit); }
+  .verdict li.warn::before { background: var(--warn); }
+  .verdict li.ok::before { background: var(--ok); }
+
+  dl.figures { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0 0 10px; border-top: 1px solid var(--rule); }
+  dl.figures > div { display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+  dl.figures dt { margin: 0; font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  dl.figures dt small { font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 4px; letter-spacing: 0; }
+  dl.figures dd { margin: 0; color: var(--ink-2); }
+  dl.figures dd .src { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); margin: 0 0 12px; }
+  table.ledger { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 720px; }
+  table.ledger th { text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; padding: 12px 14px; border-bottom: 1px solid var(--rule-strong); background: var(--surface-2); }
+  table.ledger td { padding: 12px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  table.ledger tr:last-child td { border-bottom: 0; }
+  table.ledger td.c { white-space: nowrap; }
+  table.ledger td.name { font-weight: 600; color: var(--ink); }
+  table.ledger td.name small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border-radius: 999px; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.02em; font-weight: 500; white-space: nowrap; border: 1px solid transparent; }
+  .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .chip.ok   { color: var(--ok);   background: var(--ok-soft); }
+  .chip.warn { color: var(--warn); background: var(--warn-soft); }
+  .chip.crit { color: var(--crit); background: var(--crit-soft); }
+  .chip.dead { color: var(--dead); background: var(--dead-soft); }
+  .chip.unk  { color: var(--unk);  background: var(--unk-soft); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+
+  .lanes { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 18px 0 10px; }
+  @media (min-width: 720px) { .lanes { grid-template-columns: 1fr 1fr; } }
+  .lane { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 16px 14px; display: grid; gap: 8px; align-content: start; }
+  .lane .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); }
+  .lane h4 { font-family: var(--display); font-weight: 600; font-size: 17px; margin: 0; line-height: 1.2; }
+  .lane dl { margin: 0; display: grid; gap: 6px; font-size: 14px; }
+  .lane dl div { display: grid; grid-template-columns: 74px 1fr; gap: 10px; }
+  .lane dt { color: var(--muted); font-size: 12.5px; padding-top: 1px; }
+  .lane dd { margin: 0; color: var(--ink-2); }
+  .lane.prevent { grid-column: 1 / -1; background: var(--accent-soft); border-color: transparent; }
+  .plane { border: 1px dashed var(--rule-strong); border-radius: 8px; padding: 14px 16px; background: var(--surface-2); font-size: 14.5px; color: var(--ink-2); margin: 0 0 12px; }
+  .plane b { color: var(--ink); }
+
+  .qs { counter-reset: q; }
+  ol.q { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 10px; }
+  ol.q > li { counter-increment: q; display: grid; grid-template-columns: 40px 1fr; gap: 12px; padding: 14px 14px 12px 10px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; }
+  ol.q > li::before { content: counter(q, decimal-leading-zero); font-family: var(--mono); font-size: 13px; color: var(--accent-ink); padding-top: 3px; text-align: right; font-weight: 500; }
+  ol.q .ask { font-weight: 600; color: var(--ink); margin: 0 0 4px; }
+  ol.q .why { margin: 0; color: var(--muted); font-size: 14px; }
+  ol.q .why b { color: var(--ink-2); font-weight: 600; }
+  .groupnote { font-size: 14px; color: var(--muted); margin: -4px 0 12px; }
+
+  ul.todo { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 8px; }
+  ul.todo li { display: grid; grid-template-columns: 18px 1fr; gap: 12px; align-items: start; }
+  ul.todo li::before { content: ""; width: 14px; height: 14px; margin-top: 4px; border: 1.5px solid var(--rule-strong); border-radius: 3px; background: var(--surface); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--surface); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; font-size: 15px; }
+  .callout.crit { border-left-color: var(--crit); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
+  footer p { margin-bottom: 8px; }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Viseo AB · 5555 Media AB</span>
+      <span>Receipts and Pleo setup</span>
+      <span>Reviewed 2026-08-21</span>
+    </div>
+    <h1>Kvittoläget</h1>
+    <p class="lede">The receipts pipeline has no working automatic capture. Pleo Fetch has been disconnected since late April, the auto-forwarder never ran, and every receipt that reached Pleo since then was forwarded by hand. The July plan (lanes, dashboard, closeout pack) was never finished, and the accountant is now holding Q2 on a receipt from March. The good news: Pleo shipped an MCP server last week that removes the hardest blocker for Pleo-card receipts. Out-of-pocket Amex spend still needs one decision from you.</p>
+  </header>
+
+  <h2><span class="k">01</span>The short version</h2>
+  <ul class="verdict">
+    <li class="crit"><span><b>Capture is off at the source.</b> Pleo emailed "Fetch är frånkopplad" for Viseo on 2026-04-29 and for 5555 Media on 2026-04-30. Nothing has been auto-matched since. The June and July handovers said Fetch was connected; they were wrong. The Apps Script forwarder ran once, on 2026-05-06, and never again.</span></li>
+    <li class="crit"><span><b>Q2 is blocked at Trimero on a March receipt that never reached your inbox.</b> On 2026-08-21 Nicolina wrote that a Bazoom receipt of about 59 tkr is missing in Pleo, a 104 tkr reimbursement is on hold until the receipts are in, some Kivra receipts are missing, six Q2 receipts in total. Both numbers match one row in the June dashboard exactly: Bazoom Group 59 426,85 SEK on 2026-03-12, noted "Paid out 2026-04-23, payout 104 133,43 SEK". That note is wrong on the payout: Pleo never confirmed it, the only April payout email is a failure for insufficient wallet balance (2026-04-22), and the accountant is still holding it. And the March invoice is not in Gmail at all, not in spam, not forwarded anywhere. It most likely exists only in the Bazoom portal under the analytics@viseo.se login.</span></li>
+    <li class="warn"><span><b>The backlog is structural, not a bad month.</b> Pleo's Monday reminders have shown 5 to 21 Viseo expenses missing information every week since May. It was 21 on 2026-08-17, plus 3 on 5555 Media.</span></li>
+    <li class="warn"><span><b>Everything built in June and July is frozen, and two of it disagree.</b> Dashboard data stops at 2026-06-24, Supabase was never applied, the closeout pack was never sent anywhere, the lane proposal has sat pending since 2026-07-06, and the Cowork tracker lives on another machine. On 2026-07-06 the same Wincher, Inet, Oderland and Bartender charges were both entered in Pleo as Pocket expenses (Cowork) and listed for booking via Fortnox (Thor's pack). That is a double-booking risk if both paths get finished.</span></li>
+    <li class="ok"><span><b>The blocker moved.</b> Pleo published an MCP server on 2026-08-17: search expenses, find ones missing receipts, attach receipts, set categories, queue exports. With Thor's read access to your Gmail that is a complete loop for Pleo-card receipts, no browser automation needed. It does not create out-of-pocket expenses or pay anyone.</span></li>
+  </ul>
+
+  <h2><span class="k">02</span>Live numbers</h2>
+  <dl class="figures">
+    <div><dt>21<small>+ 3</small></dt><dd>Expenses missing information in Pleo, Viseo and 5555 Media.<span class="src">Pleo weekly reminder, 2026-08-17. Counts only; Pleo never itemises by email. The wording is second person ("Du har 21 utgifter"), so this reads as your own expenses per entity, not the company total.</span></dd></div>
+    <div><dt>114<small>days</small></dt><dd>Since Pleo Fetch disconnected for Viseo.<span class="src">Pleo notice 2026-04-29, no reconnection notice since.</span></dd></div>
+    <div><dt>13 / 5 / 1</dt><dd>Forwards to forward@fetch.pleo.io in 90 days that matched, partially matched, failed.<span class="src">Pleo reply emails. All sent by you in six bursts: 06-06, 06-16, 07-06, 08-13, 08-17, 08-21.</span></dd></div>
+    <div><dt>~30<small>/ month</small></dt><dd>Vendor receipt emails landing in your inbox, from about 25 senders.<span class="src">Last 30 days. Roughly six of them had been forwarded to Pleo by 2026-08-21.</span></dd></div>
+    <div><dt>40<small>days</small></dt><dd>Pleo's matching window for forwarded receipts. Anything later must be attached in Pleo directly.<span class="src">Pleo no-match email, 2026-08-13. Fetch's own auto-scan looks 3 days before and 10 days after a charge.</span></dd></div>
+    <div><dt class="num">41 414,33</dt><dd>SEK of business Amex rows (21) the 2026-07-06 pack wanted booked; 9 of them (35 352,10 SEK) lacked an invoice, and several were entered in Pleo the same afternoon by the other process.<span class="src">Pack covers March to 2026-06-24 only. July and August Amex transactions exist nowhere in the system.</span></dd></div>
+    <div><dt class="num">104 133,43</dt><dd>SEK reimbursement to you that the dashboard recorded as paid out on 2026-04-23 and that Pleo never confirmed.<span class="src">Only April payout email: "Utbetalningen misslyckades eftersom ditt wallet-saldo är för lågt", 2026-04-22. Nicolina still holds it on 2026-08-21.</span></dd></div>
+    <div><dt class="num">22 452,23</dt><dd>SEK Pocket payout to Marcus awaiting your approval.<span class="src">Pleo email 2026-08-03, no approval or payment mail since, still on the evening TODO list 2026-08-20.</span></dd></div>
+    <div><dt>~2026-10-02</dt><dd>Your virtual Pleo card expires, which also changes the last four digits used for matching.<span class="src">Pleo renewal email 2026-08-03.</span></dd></div>
+  </dl>
+
+  <h2><span class="k">03</span>Component ledger</h2>
+  <p class="muted">Everything that exists today, with what it actually does. Checked read-only against Gmail, Calendar, Drive, Vercel, Supabase, OpenClaw cron, Thor files and Pleo's documentation, then adversarially re-checked for contradictions. No system was modified.</p>
+  <div class="legend">
+    <span class="chip ok">works</span><span class="chip warn">degraded</span><span class="chip crit">broken</span><span class="chip dead">abandoned</span><span class="chip unk">unverified</span>
+  </div>
+  <div class="tablewrap">
+    <table class="ledger">
+      <thead><tr><th>Component</th><th>Status</th><th>What we found</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Pleo Fetch<small>Gmail OAuth auto-match, per Pleo org</small></td><td class="c"><span class="chip crit">broken</span></td><td>Disconnected for both orgs since 2026-04-29/30 per Pleo's own emails. All 13 matches since were preceded by a manual forward; receipts that arrive but are not forwarded (Ahrefs, Supabase, Fathom, Vercel, Wincher) stay unmatched. Reconnecting is a five-minute task in Pleo, but only you can do it.</td></tr>
+        <tr><td class="name">Manual forward to forward@fetch.pleo.io</td><td class="c"><span class="chip ok">works</span></td><td>Matches within minutes when the email holds the right PDF and the charge is under 40 days old. Batches produce partial matches that need confirmation in the mobile app. One bounce in June from the wrong address fetch@pleo.io.</td></tr>
+        <tr><td class="name">Apps Script pleo_forward.gs<small>5-minute allowlist forwarder</small></td><td class="c"><span class="chip dead">abandoned</span></td><td>Drive holds an Apps Script project named "Untitled project" created 2026-05-06 16:42 and never modified, eight minutes after the only scripted-looking batch of 8 forwards ever sent. Its code was not opened. No run, no trigger failure, no forward since. The only Apps Script mail you get is a daily failure digest for Marcus Lagerström's unrelated MailchimpCampaigns script.</td></tr>
+        <tr><td class="name">Cowork scheduled task monthly-receipts-pleo<small>and the Receipts project folder on your Mac</small></td><td class="c"><span class="chip unk">unverified</span></td><td>Not on this server; nothing syncs from it, nothing was found in Drive. The master tracker, card cheat sheet, portal checklist and 14 Spotify PDFs exist only there, if at all.</td></tr>
+        <tr><td class="name">Receipts dashboard<small>receipts-dashboard-vercel.vercel.app</small></td><td class="c"><span class="chip warn">degraded</span></td><td>Live behind basic auth, but data is frozen at 2026-06-24 (91 rows: 75 Amex, 16 KINTO). Supabase tables were never created, so edits live only in your browser. No importer exists for Amex, Pleo or Gmail. The whole folder is gitignored.</td></tr>
+        <tr><td class="name">bin/receipt-ops lane CLI</td><td class="c"><span class="chip warn">degraded</span></td><td>Runs and sorts the same 91 rows into six lanes. Built 2026-07-06, never extended. Its data predates the Pocket entries made the same afternoon, so it still says Wincher, Inet and Oderland are missing.</td></tr>
+        <tr><td class="name">Expense closeout pack 2026-07-06<small>accountant / Fortnox review bundle</small></td><td class="c"><span class="chip dead">abandoned</span></td><td>Internally consistent (75 rows, 187 808,20 SEK) and ready to hand over, but no trace it reached Trimero. The accountant decision it asks for in step 1 was never made. The generator script was not saved. Its 4 "unmatched" KINTO receipts are exactly the KINTO charges on the Platinum card ·3003 that the dashboard excluded.</td></tr>
+        <tr><td class="name">Pocket entry via Claude in Chrome<small>Cowork driving app.pleo.io in your logged-in session</small></td><td class="c"><span class="chip unk">unverified</span></td><td>Proven on 2026-07-06: 10 expenses, 30 474,77 SEK, balance-verified. Whether the 14 queued Spotify receipts (1 896,00 SEK) and the 9 denied expenses were ever finished is unknown; Supabase was forwarded that day but Pleo never confirmed a match, and no match email since names SATS, OpenAI, Claude or Spotify, so assume not. Submits can fail silently; an unexplained +2 693,00 SEK balance move was never explained.</td></tr>
+        <tr><td class="name">Calendar reminders<small>first Tuesday 14:00 shared, first Monday private</small></td><td class="c"><span class="chip ok">works</span></td><td>They fire. The agent's meeting prep surfaces the Pleo nag emails each time. No outcome was recorded for July or August; you were out of office until 2026-08-04.</td></tr>
+        <tr><td class="name">OpenClaw cron on this server</td><td class="c"><span class="chip dead">abandoned</span></td><td>18 jobs, none for receipts. The one-shot pleo-api-revisit reminder for 2026-07-01 left no outcome. The lane-automation skill proposal from 2026-07-06 is still pending and its skill directory was never created.</td></tr>
+        <tr><td class="name">Pleo mail in the attention feed</td><td class="c"><span class="chip warn">degraded</span></td><td>Since the CCA cleanup you approved on 2026-08-19, routine Pleo mail is suppressed before investigation. Correct for client awareness, but it means nobody sees "21 missing" anymore. A Pleo "Autogiro initierat" email on 2026-08-19 was quarantined unread.</td></tr>
+        <tr><td class="name">Discord #receipts</td><td class="c"><span class="chip unk">unverified</span></td><td>The bot's logs show nothing from you after 2026-07-06 17:31. That is absence in the logs, not a channel read; the channel itself was not re-read.</td></tr>
+        <tr><td class="name">Thor Gmail access<small>service account, read-only</small></td><td class="c"><span class="chip ok">works</span></td><td>Search and read for oscar, axel and marcus.lagerstrom at viseo.se, used daily. The scope allows attachment download but the script never implemented it; no send, no forward. Your personal Gmail is not reachable directly, but it auto-forwards into the Viseo mailbox, so receipts are visible.</td></tr>
+        <tr><td class="name">Claude Gmail connector<small>this session</small></td><td class="c"><span class="chip unk">unverified</span></td><td>Exposes a forward tool the June handover assumed did not exist. Whether it preserves PDF attachments is untested; testing means sending one email, which I have not done without your go-ahead.</td></tr>
+        <tr><td class="name">Fortnox CLI</td><td class="c"><span class="chip ok">works</span></td><td>Reads customers, invoices, contracts, supplier invoices; guarded dry-run writes for invoices. Token keepalive healthy. Token scopes are companyinformation, customer, invoice, payment, supplierinvoice: no bookkeeping or archive scope, and no voucher or supplier-invoice write exists, so booking Amex spend directly in Fortnox needs a new consent and a new allowlisted command.</td></tr>
+        <tr><td class="name">Browser tooling on this server</td><td class="c"><span class="chip unk">unverified</span></td><td>Chrome, Playwright and agent-browser are installed. On 2026-06-06 you logged this server's Chrome into Pleo and approved "create in Pleo"; Thor failed on window mechanics and created nothing. The OpenClaw CDP browser profile has never loaded Pleo. No verified Pleo session exists today, and the 1Password CLI is not signed in.</td></tr>
+        <tr><td class="name">Pleo API access</td><td class="c"><span class="chip crit">broken</span></td><td>Standalone API keys were declined for Viseo in April (ticket #279518). Accounting Entries API went GA 2026-06-24 and an Enrichment API can attach receipts by amount and card, but both need keys Pleo will not issue. The MCP server sidesteps this: its OAuth discovery is live and standard (dynamic registration, PKCE), and Pleo itself documents a <code>claude mcp add --transport http</code> path, so connecting from this server is feasible once you flip the switch.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout crit">
+    <p><b>Double-routing on 2026-07-06.</b> Thor's pack (10:44) listed Wincher 5 299,45 and 3 514,38, Inet 8 990, Oderland 4 173,75 x2 and Bartender 110,78 as "missing invoice, book via Fortnox" and the CLI says "do not create in Pleo". The Cowork run the same afternoon entered those very rows in Pleo as Pocket expenses, with PDFs, balance-verified. Trust Cowork for what now exists in Pleo. Before anyone books from the pack, the pack must be diffed against Pleo, or Nicolina books them twice.</p>
+  </div>
+
+  <h2><span class="k">04</span>Why it keeps hurting</h2>
+  <ol>
+    <li><b>No capture at the source.</b> With Fetch off and no forwarder, a receipt only reaches Pleo when you forward it. Every month starts at zero.</li>
+    <li><b>Monthly batching fights a 40-day window.</b> Charges from early in the month are already expired when the first-Monday sweep runs, so the sweep itself produces partial and failed matches that need app confirmation.</li>
+    <li><b>Two mailboxes, two Pleo orgs.</b> Receipts addressed to oscar@5555.media (Firecrawl, Oderland, Google Workspace 5555.media, the OpenAI org named 5555 Media) get forwarded from viseo.se and land in the Viseo org, or match slowly, or not at all. Nothing has ever been forwarded from the 5555 Media identity.</li>
+    <li><b>Business spend on cards Pleo cannot see.</b> The Amex ·1022 has no feed into Pleo. Each charge becomes either a hand-entered Pocket expense or a Fortnox pack item, and the choice between the two was never settled with Trimero. Amex sends no statements by email, so even knowing what was charged needs a portal export.</li>
+    <li><b>Personal and business still mix, and the rules disagree.</b> 18 personal purchases sat on the business card (26 217,76 SEK); Ahrefs and Oderland ran on personal cards; 15 rows never got a ruling. Spotify was tagged personal on 2026-06-24 and reimbursed as business on 2026-07-06. The Platinum card ·3003 is "personal-only" in your June rule and "sweep monthly for KINTO" in the July runbook, and the June Amex export shows 8 KINTO charges on it. Only you can settle these.</li>
+    <li><b>Portal-only vendors.</b> Spotify, the OpenAI API, Google Cloud, SATS, NordVPN and others never email a proper invoice. Someone has to log in.</li>
+    <li><b>No owner of the loop.</b> The tracker is on your Mac, the CLI is on this server, the bot has heard nothing about receipts since 2026-07-06, and Pleo's reminders are now filtered out. Nothing closes the loop when you are away, which is exactly when the backlog grows.</li>
+  </ol>
+
+  <h2><span class="k">05</span>What changed since the July plan</h2>
+  <ul>
+    <li><b>Pleo MCP server</b> (docs published 2026-08-17, https://mcp.pleo.io/mcp): browser OAuth, no credentials to store. An admin enables it per entity under Settings, General, Pleo AI. It can search expenses, identify expenses missing details or receipts, attach receipts, set categories, tags, notes and tax codes, and add expenses to the export queue. It cannot make payouts, and there is no documented tool to create an out-of-pocket expense. One OAuth connection covers both entities once each entity's admin has opted in. Two caveats: Pleo publishes no tool list (it is labelled beta), and receipt attachment is described as link-based, "directly from the link, no downloading or uploading required", with no documented local-file upload. So the agent must hand Pleo a fetchable link, or download the PDF and serve it from somewhere Pleo can reach. "Included with eligible plans" is all the pricing docs say.</li>
+    <li><b>Accounting Entries API went GA on 2026-06-24</b> and an Enrichment API attaches receipts to card expenses by amount, currency, card last four and merchant. Still gated behind the keys Pleo declined to issue, so a re-request is worth one email but not worth waiting for.</li>
+    <li><b>Fetch was never actually connected</b> during the June and July runs. The handovers' "connected" claim conflated "forwarding to forward@fetch.pleo.io works" (which needs no OAuth) with "Fetch is scanning the inbox".</li>
+    <li><b>The Claude Gmail connector can forward</b>, which the June dead-ends list said was impossible. If attachments survive, the agent can do the forwarding step you have been doing by hand.</li>
+    <li><b>CCA now suppresses Pleo mail</b>, so the reminder signal needs its own route into a finance workflow rather than the client-awareness feed.</li>
+  </ul>
+
+  <h2><span class="k">06</span>The target system</h2>
+  <p>One control plane on this server, continuous daily capture instead of a monthly sweep, Pleo MCP instead of browser automation for everything that already lives in Pleo, and exactly three things left for you: tag ambiguous rows, approve batches, and tap reimburse. Money never moves without your approval.</p>
+
+  <div class="lanes">
+    <div class="lane prevent">
+      <span class="tag">Lane 0 · Prevention</span>
+      <h4>Stop creating receipts that need chasing</h4>
+      <dl>
+        <div><dt>Do once</dt><dd>Reconnect Fetch in both Pleo orgs. Move recurring SaaS (Ahrefs, Wincher, Oderland, Anthropic, OpenAI, Google Workspace, Loom, Fathom, Vercel, Supabase, Spotify) onto Pleo vendor cards with default category and tags, so the charge and its category are captured automatically and only the receipt needs attaching. Schedule automatic reimbursements in Pleo.</dd></div>
+        <div><dt>Effect</dt><dd>Most of the monthly volume disappears from the Pocket lane and becomes Lane A, which can be fully automated.</dd></div>
+      </dl>
+    </div>
+    <div class="lane">
+      <span class="tag">Lane A · Pleo card, missing receipt</span>
+      <h4>Daily, zero touch</h4>
+      <dl>
+        <div><dt>Trigger</dt><dd>Daily cron asks Pleo MCP for expenses missing a receipt (both orgs).</dd></div>
+        <div><dt>Mechanism</dt><dd>Search Gmail by vendor, amount and date window; get the PDF; attach via Pleo MCP from a link the agent controls. Fallback: forward the email to forward@fetch.pleo.io. Kivra fees handled by whatever rule Nicolina confirms.</dd></div>
+        <div><dt>You</dt><dd>Nothing. Weekly digest lists what could not be found.</dd></div>
+      </dl>
+    </div>
+    <div class="lane">
+      <span class="tag">Lane B · Denied or wrong receipt</span>
+      <h4>On Nicolina's comment</h4>
+      <dl>
+        <div><dt>Trigger</dt><dd>Expense flagged "behöver information" or a review comment.</dd></div>
+        <div><dt>Mechanism</dt><dd>Locate the real invoice (Gmail or portal), attach the correct PDF via MCP, resolve the comment.</dd></div>
+        <div><dt>You</dt><dd>Nothing unless the invoice only exists behind a login we do not have.</dd></div>
+      </dl>
+    </div>
+    <div class="lane">
+      <span class="tag">Lane C · Company spend on Amex</span>
+      <h4>Needs your decision</h4>
+      <dl>
+        <div><dt>Input</dt><dd>Amex transactions. Options: you drop a portal CSV on a fixed day, the agent holds an Amex session, Amex per-transaction alerts, or a PSD2 account feed (Tink, Enable Banking), which nobody has checked for Amex Sweden yet.</dd></div>
+        <div><dt>Option 1</dt><dd>Pocket expenses created by browser automation in Pleo, receipt attached, you approve the batch and reimburse.</dd></div>
+        <div><dt>Option 2</dt><dd>Monthly Fortnox pack to Trimero (CSV plus PDFs), booked as owner reimbursement. No Pleo involved. Needs a Fortnox re-consent and a new guarded write.</dd></div>
+        <div><dt>Option 3</dt><dd>Make the lane disappear: company-billed Pleo cards or vendor cards for everything recurring.</dd></div>
+        <div><dt>You</dt><dd>Tag business or personal where the card does not decide it. Approve the batch.</dd></div>
+      </dl>
+    </div>
+    <div class="lane">
+      <span class="tag">Lane D · Portal-only vendors</span>
+      <h4>Shrink it, then automate the rest</h4>
+      <dl>
+        <div><dt>First</dt><dd>Move what can move to the Pleo card so the receipt flows through Lane A; switch on "email invoices" wherever the vendor offers it.</dd></div>
+        <div><dt>Then</dt><dd>Playwright on this server with sessions from 1Password for the remainder (Spotify order history, OpenAI billing, Google Cloud documents).</dd></div>
+        <div><dt>You</dt><dd>Approve which logins the agent may hold.</dd></div>
+      </dl>
+    </div>
+  </div>
+  <div class="plane"><b>Control plane.</b> One receipts queue (the Supabase schema from June already exists, or a Thor-local store), every row carrying entity, lane, status, tag, evidence file, next action, and what Pleo and Fortnox say about it. OpenClaw cron runs Lane A daily and the reconciliation monthly. Discord #receipts gets one weekly digest with only the rows that need a human: a tag, an approval, or a login. Trimero gets the Pleo export plus the Lane C pack on a fixed day each month, and a gap list that says what is still missing and why. Re-authentication (Fortnox BankID, Pleo session, card renewals) becomes a scheduled ritual instead of a surprise.</div>
+
+  <div class="callout">
+    <p><b>What this removes.</b> Finding receipts, forwarding them, attaching them, categorising Pleo-card spend, chasing vendor portals we hold sessions for, generating the accountant pack, and answering "what is missing" on the first Tuesday. <b>What stays with you</b> until company-billed cards replace the Amex: tagging genuinely ambiguous rows and approving batches before money moves.</p>
+  </div>
+
+  <h2><span class="k">07</span>What I need from you</h2>
+  <p class="groupnote">Ordered by how much each answer changes the build. Everything else I can find out myself.</p>
+
+  <div class="qs">
+  <h3>Decisions that shape the architecture</h3>
+  <ol class="q">
+    <li><p class="ask">Are you staying on Pleo? You told Pleo support on 2026-06-26 you were looking at alternatives, and Mynt came up in April.</p><p class="why"><b>Why:</b> every Pleo-specific investment below (MCP, Fetch, Pocket automation, vendor cards) is wasted if the answer is no. If you are switching, the design starts from the new platform's capture features instead.</p></li>
+    <li><p class="ask">Enable Pleo MCP on both entities (Settings, General, Pleo AI) and confirm you are admin on Viseo AB and 5555 Media AB in Pleo. Which plan are you on, and do you see "Open API" or "API Keys" under Settings?</p><p class="why"><b>Why:</b> this is the difference between a clean API-style loop for Lanes A and B and brittle browser automation inside a logged-in Chrome. If your plan is not eligible, we need to know now.</p></li>
+    <li><p class="ask">For business spend on the Amex, pick the default: eliminate it (vendor or company-billed Pleo cards), Pocket reimbursement in Pleo, or a monthly Fortnox pack booked by Trimero. And confirm which of the 2026-07-06 Pocket entries (Wincher x3, Inet, Oderland x3, Bartender, Spotify x2) actually exist in Pleo today.</p><p class="why"><b>Why:</b> Lane C is built completely differently for each, and the pack and the Pocket run currently overlap. Marcus's Amex outlays and self-payouts should follow the same lane.</p></li>
+    <li><p class="ask">Card rules in one pass. Business Amex is ·1022 (account -61022; the "0122" on the brain page is a transposition). Personal is ·2004 (-62004). Are -61006 and -62004 the same SAS Amex Elite under two account ids? (Amex's notice for the March Bazoom charge says card ending 061006; the dashboard puts the same charge on ·2004, which supports the same-card theory.) Is the Platinum ·3003 (-13003) personal-only as you said on 2026-06-04, or swept monthly because it pays KINTO (8 KINTO charges on it in the June export)? Did the SAS company Mastercard arrive? Pleo plastic ·3128 versus virtual ·3776?</p><p class="why"><b>Why:</b> the importer and the business/personal split are keyed on these, and two sources currently disagree on ·3003. I will not guess.</p></li>
+    <li><p class="ask">Spotify, Audible, Kindle: business or personal? The dashboard tags Spotify personal (your 2026-06-24 tags); the 2026-07-06 run reimbursed Spotify as business and queued 14 receipts back to 2024-10.</p><p class="why"><b>Why:</b> the same transaction is tagged both ways, and reimbursing 2024 expenses needs Nicolina's view on closed years.</p></li>
+    <li><p class="ask">Which Gmail should Fetch connect to for each Pleo org, and which vendors belong to 5555 Media (Firecrawl, Oderland, Google Workspace 5555.media, the OpenAI org, anything else)? Is 5555.media its own Google Workspace tenant?</p><p class="why"><b>Why:</b> forwards from the wrong mailbox land in the wrong org. Thor can read viseo.se only today. Routing by vendor needs a list, not a guess.</p></li>
+    <li><p class="ask">How do you get Amex transactions today: portal CSV, the app, or the statement PDF? Would you let the agent hold an Amex session from 1Password, enable per-transaction alerts, allow a PSD2 account connection, or drop a CSV in a folder on a fixed day?</p><p class="why"><b>Why:</b> Amex sends nothing by email. Without a feed, Lane C cannot start and the reconciliation cannot know what is missing. July and August are blank everywhere.</p></li>
+  </ol>
+
+  <h3>Access and permissions</h3>
+  <ol class="q">
+    <li><p class="ask">Reconnect Pleo Fetch in both orgs (My Account, Power-ups, Fetch). Only you can, it is OAuth.</p><p class="why"><b>Why:</b> it is the cheapest capture path and it has been off for 114 days.</p></li>
+    <li><p class="ask">May I forward one known receipt from your Viseo mailbox to forward@fetch.pleo.io through the Gmail connector to test whether attachments survive? And may Thor download receipt attachments through its existing read-only Gmail access?</p><p class="why"><b>Why:</b> if forwards keep the PDF, the forwarding you do by hand becomes a daily agent task. The download test needs no new permission; I would rather you know before I run it.</p></li>
+    <li><p class="ask">Sign in the 1Password CLI on this server (or tell me which vault holds Pleo, Spotify, OpenAI and Amex logins) and say which of those sessions the agent may use. What 2FA does Pleo use for you?</p><p class="why"><b>Why:</b> Lane D and the Amex feed depend on it. Credentials are never pasted in chat; the agent uses stored sessions only.</p></li>
+    <li><p class="ask">May we talk to Nicolina directly, or through you? We need the cut-off day per period, whether she books the Amex backlog from a pack or wants Pocket, who runs the Pleo to Fortnox export, what she wants for Kivra (she now lists Kivra receipts as missing; the standing "never chase Kivra, Nicolina books it via the Fortnox inbox" rule has no evidence, nothing Kivra-related has ever reached that inbox), and what the 6 Q2 items are.</p><p class="why"><b>Why:</b> the design target is what Nicolina accepts, and nobody has asked her.</p></li>
+    <li><p class="ask">Retire the Cowork side, or keep it? Does the Receipts folder, the monthly-receipts-pleo task and pleo_forward.gs still exist on your Mac? Should the "Untitled project" Apps Script in Drive be deleted?</p><p class="why"><b>Why:</b> two control planes is how this got lost in July. I recommend one, on this server, with Cowork used only for browser-driven Pocket entries if you choose that lane. A dormant forwarder that wakes up later would double-forward.</p></li>
+    <li><p class="ask">Approve, revise or discard the pending skill proposal receipt-ops-automation from 2026-07-06 as the starting design.</p><p class="why"><b>Why:</b> it already encodes the lanes and safety rules; the MCP changes the mechanics of Lanes A and B, not the shape. Its "never forward without approval" rule needs loosening to an allowlist if you want zero touch.</p></li>
+  </ol>
+
+  <h3>Rulings to clear Q2 and August</h3>
+  <ol class="q">
+    <li><p class="ask">Bazoom. Confirm the missing "about 59 tkr" is the 2026-03-12 Bazoom Group charge of 59 426,85 SEK, the one inside the 104 133,43 SEK payout. Download its invoice from the Bazoom portal (app.bazoom.com, the analytics@viseo.se login); it never arrived by email, and Gmail, spam and every forward were checked. Did the 104 133,43 SEK ever reach your bank? (The July Bazoom receipt for EUR 6 926,00, receipt #1160-5363, is a separate charge on ·1022 and is also unforwarded.)</p><p class="why"><b>Why:</b> the dashboard says paid out; Pleo's only April payout email is a failure for insufficient wallet balance, and Nicolina says she cannot release it, so assume the money has not come. The March invoice is far outside the 40-day window, so it must be attached in Pleo directly or handed to Nicolina. This unblocks Q2 and your money regardless of automation.</p></li>
+    <li><p class="ask">Did the 14 Spotify Pocket receipts and the 9 denied expenses (Supabase, SATS, Google Cloud, OpenAI x5, Claude.ai) get finished after 2026-07-06? Was the closeout pack ever sent to Trimero?</p><p class="why"><b>Why:</b> decides whether the pack is the backlog or history, and whether the double-routing already happened.</p></li>
+    <li><p class="ask">Rulings on the 15 needs-review rows (Elgiganten, Webhallen, Zettle MLP Sports, H&amp;M, Systembolaget, Kronans Apotek, Life Land, Japanese Knife, and others) and how the 18 personal purchases on the business card (26 217,76 SEK, including Sixt Costa Rica and Thomann) should be settled: repayment, owner's draw, or reclassification.</p><p class="why"><b>Why:</b> no rule can decide these. Once you rule, they never come back.</p></li>
+    <li><p class="ask">Approve or hold the 22 452,23 SEK Pocket payout to Marcus, renew the virtual card, and say whether the agent may surface payout approvals and renewals going forward.</p><p class="why"><b>Why:</b> the payout has waited since 2026-08-03 and sits above his self-payout limit; the card expires in early October.</p></li>
+    <li><p class="ask">Should Trimero, Nicolina Ytre-Eide and the auditor now get proper brain pages? On 2026-05-26 you chose to keep accounting context source-only.</p><p class="why"><b>Why:</b> an automated monthly handoff to Trimero is easier to keep right when the accountant is a first-class entity the agent can reason about.</p></li>
+  </ol>
+  </div>
+
+  <h2><span class="k">08</span>Do this week regardless</h2>
+  <ul class="todo">
+    <li>Reconnect Fetch in both Pleo orgs. Five minutes, stops the bleeding.</li>
+    <li>Log in to the Bazoom portal, download the March invoice for 59 426,85 SEK, attach it in Pleo (or hand it to Nicolina), and answer her 59k versus 104k question. This unblocks Q2 and the 104 tkr that has been stuck since the failed payout of 2026-04-22.</li>
+    <li>Forward the last 40 days of unforwarded receipts to forward@fetch.pleo.io: Ahrefs, Supabase, Fathom, Vercel, Wincher, Brave, DigitalOcean, Grok, Anthropic, Letaido, Apple x3, Google Play, DJI, Oderland x2, Google Workspace 5555.media, DataFeedWatch. Or approve question 09 and I do it.</li>
+    <li>Approve or hold Marcus's payout.</li>
+    <li>Renew the virtual Pleo card before early October.</li>
+  </ul>
+
+  <h2><span class="k">09</span>What I do next without waiting</h2>
+  <ul>
+    <li>Produce the itemised list of every receipt email from the last 40 days that has not been forwarded, with direct Gmail links, so the forwarding step is one click per item for whoever does it.</li>
+    <li>Diff the 2026-07-06 closeout pack against the Cowork Pocket run so the double-routed rows are marked before anything reaches Trimero.</li>
+    <li>Write the Pleo MCP connection and permission plan (read tools always, write tools gated on batch approval) so it can be switched on the day you enable Pleo AI, connect from this server, and enumerate the actual tools, since Pleo publishes none.</li>
+    <li>Check whether KINTO emails a receipt per booking (two full receipts with amounts reached your personal Gmail in April, paid with a card ending 1007 that matches none of the known plastics, probably an Apple Pay device number) so KINTO can move from "portal-only" to Lane A.</li>
+    <li>Write the Amex CSV importer against the June export format already on file, so the first real export drops straight into the queue.</li>
+    <li>Update the brain: the Pleo API project page still said Fetch was connected, the business card ends 0122, and the KINTO rows should be created as Pocket expenses. It now records the July lane design, the closeout pack, the Fetch disconnection, the MCP availability, the Q2 block, the card conflicts, and your automation mandate from today.</li>
+  </ul>
+
+  <footer>
+    <p>Evidence: Gmail (oscar.sandstrom@viseo.se, read-only), Google Calendar and Drive, Vercel and Supabase project state, OpenClaw cron list and session logs, Thor files under reports/, the 2026-06-04 and 2026-07-06 Cowork handovers as posted in Discord #receipts, OBrain projects/pleo-api.md, and Pleo's official help and developer documentation (help.pleo.io, developers.pleo.io, changelog entries 2026-06-24 and 2026-08-17). Eight discovery passes plus one adversarial critique pass. Amounts are as stated in the underlying emails and files; SEK conversions are not applied.</p>
+    <p>Read-only review. No email was sent, no label applied, no Pleo, Fortnox, Vercel or Supabase change made.</p>
+  </footer>
+</div>

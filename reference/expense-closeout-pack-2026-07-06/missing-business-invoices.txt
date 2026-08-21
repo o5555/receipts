@@ -1,0 +1,9 @@
+- 2026-05-28 | SP Minaal2026 | 8 480,00 SEK | card 2004 | Find Minaal invoice/receipt | id amex-2026-05-28-minaal
+- 2026-05-25 | Inet.se | 8 990,00 SEK | card 1022 | Find Inet invoice | id amex-2026-05-25-inet
+- 2026-05-13 | Oderland | 4 173,75 SEK | card 2004 | Find Oderland invoice | id amex-2026-05-13-oderland
+- 2026-05-11 | Paddle.net Bartender | 110,78 SEK | card 1022 | Find Paddle/Bartender receipt | id amex-2026-05-11-bartender
+- 2026-05-10 | Wincher International | 3 514,38 SEK | card 1022 | Find Wincher invoice | id amex-2026-05-10-wincher
+- 2026-05-09 | Amazon.se Marketplace | 110,99 SEK | card 1022 | Find Amazon invoice | id amex-2026-05-09-amazon-marketplace-111
+- 2026-05-08 | KINTO Sweden | 499,00 SEK | card 1022 | Find matching KINTO receipt or request from provider | id amex-2026-05-08-kinto
+- 2026-04-26 | Oderland | 4 173,75 SEK | card 2004 | Find Oderland invoice | id amex-2026-04-26-oderland
+- 2026-04-10 | Wincher International | 5 299,45 SEK | card 1022 | Find Wincher invoice and create or match Pleo expense | id amex-2026-04-10-wincher

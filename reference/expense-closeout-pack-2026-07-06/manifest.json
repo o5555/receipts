@@ -1,0 +1,150 @@
+{
+  "generatedAt": "2026-07-06T10:44:23.436Z",
+  "sourceRoot": "/Users/odin/thor/reports/receipts-dashboard-vercel",
+  "counts": {
+    "amex": 75,
+    "amexAmount": 187808.19999999998,
+    "business": 28,
+    "businessAmount": 126873.12,
+    "personal": 43,
+    "personalAmount": 76394.08,
+    "ignoreRows": 6,
+    "ignoreAmount": -15121.89,
+    "businessNeedsBooking": 21,
+    "businessNeedsBookingAmount": 41414.329999999994,
+    "businessReady": 11,
+    "businessReadyAmount": 5117,
+    "businessMissing": 9,
+    "businessMissingAmount": 35352.1,
+    "businessBlocked": 1,
+    "businessBlockedAmount": 945.23,
+    "businessDone": 5,
+    "businessDoneAmount": 82850.79,
+    "businessPending": 2,
+    "businessPendingAmount": 2608,
+    "kintoMatchedToAmex": 10,
+    "kintoUnmatched": 6,
+    "copiedPdfs": 17
+  },
+  "copied": [
+    {
+      "id": "amex-2026-06-24-oderland-761745",
+      "evidenceSourceId": "amex-2026-06-24-oderland-761745",
+      "evidenceSource": "direct",
+      "dest": "available-pdfs/business-amex/2026-06-24_286.25_Oderland_amex-2026-06-24-oderland-761745.pdf",
+      "original": "receipts/oderland/Invoice-761745.pdf"
+    },
+    {
+      "id": "amex-2026-06-01-kinto",
+      "evidenceSourceId": "kinto-1798704-3894652",
+      "evidenceSource": "matched-kinto-source",
+      "dest": "available-pdfs/business-amex/2026-06-01_756.00_KINTO-Sweden_amex-2026-06-01-kinto.pdf",
+      "original": "receipts/kinto/1798704-3894652.pdf"
+    },
+    {
+      "id": "amex-2026-05-30-kinto",
+      "evidenceSourceId": "kinto-1798704-3878083",
+      "evidenceSource": "matched-kinto-source",
+      "dest": "available-pdfs/business-amex/2026-05-30_1355.00_KINTO-Sweden_amex-2026-05-30-kinto.pdf",
+      "original": "receipts/kinto/1798704-3878083.pdf"
+    },
+    {
+      "id": "amex-2026-05-28-kinto-116",
+      "evidenceSourceId": "kinto-1793307-3871190",
+      "evidenceSource": "matched-kinto-source",
+      "dest": "available-pdfs/business-amex/2026-05-28_116.00_KINTO-Sweden_amex-2026-05-28-kinto-116.pdf",
+      "original": "receipts/kinto/1793307-3871190.pdf"
+    },
+    {
+      "id": "amex-2026-05-28-kinto-595",
+      "evidenceSourceId": "kinto-1793307-3867891",
+      "evidenceSource": "matched-kinto-source",
+      "dest": "available-pdfs/business-amex/2026-05-28_595.00_KINTO-Sweden_amex-2026-05-28-kinto-595.pdf",
+      "original": "receipts/kinto/1793307-3867891.pdf"
+    },
+    {
+      "id": "amex-2026-05-21-kinto",
+      "evidenceSourceId": "kinto-1773098-3837100",
+      "evidenceSource": "matched-kinto-source",
+      "dest": "available-pdfs/business-amex/2026-05-21_282.00_KINTO-Sweden_amex-2026-05-21-kinto.pdf",
+      "original": "receipts/kinto/1773098-3837100.pdf"
+    },
+    {
+      "id": "amex-2026-05-19-kinto",
+      "evidenceSourceId": "kinto-1773098-3825818",
+      "evidenceSource": "matched-kinto-source",
+      "dest": "available-pdfs/business-amex/2026-05-19_995.00_KINTO-Sweden_amex-2026-05-19-kinto.pdf",
+      "original": "receipts/kinto/1773098-3825818.pdf"
+    },
+    {
+      "id": "amex-2026-05-15-kinto-64",
+      "evidenceSourceId": "kinto-1765993-3811099",
+      "evidenceSource": "matched-kinto-source",
+      "dest": "available-pdfs/business-amex/2026-05-15_64.00_KINTO-Sweden_amex-2026-05-15-kinto-64.pdf",
+      "original": "receipts/kinto/1765993-3811099.pdf"
+    },
+    {
+      "id": "amex-2026-05-15-kinto-178",
+      "evidenceSourceId": "kinto-1765993-3809336",
+      "evidenceSource": "matched-kinto-source",
+      "dest": "available-pdfs/business-amex/2026-05-15_178.75_KINTO-Sweden_amex-2026-05-15-kinto-178.pdf",
+      "original": "receipts/kinto/1765993-3809336.pdf"
+    },
+    {
+      "id": "amex-2026-05-12-kinto-94",
+      "evidenceSourceId": "kinto-1757614-3795678",
+      "evidenceSource": "matched-kinto-source",
+      "dest": "available-pdfs/business-amex/2026-05-12_94.00_KINTO-Sweden_amex-2026-05-12-kinto-94.pdf",
+      "original": "receipts/kinto/1757614-3795678.pdf"
+    },
+    {
+      "id": "amex-2026-05-12-kinto-395",
+      "evidenceSourceId": "kinto-1757614-3793207",
+      "evidenceSource": "matched-kinto-source",
+      "dest": "available-pdfs/business-amex/2026-05-12_395.00_KINTO-Sweden_amex-2026-05-12-kinto-395.pdf",
+      "original": "receipts/kinto/1757614-3793207.pdf"
+    },
+    {
+      "id": "kinto-1713805-3699734",
+      "evidenceSourceId": "kinto-1713805-3699734",
+      "evidenceSource": "direct",
+      "dest": "available-pdfs/kinto-source-review/2026-04-23_1075.00_KINTO-Share_kinto-1713805-3699734.pdf",
+      "original": "receipts/kinto/1713805-3699734.pdf"
+    },
+    {
+      "id": "kinto-1713805-3702626",
+      "evidenceSourceId": "kinto-1713805-3702626",
+      "evidenceSource": "direct",
+      "dest": "available-pdfs/kinto-source-review/2026-04-23_108.00_KINTO-Share_kinto-1713805-3702626.pdf",
+      "original": "receipts/kinto/1713805-3702626.pdf"
+    },
+    {
+      "id": "kinto-1726073-3726111",
+      "evidenceSourceId": "kinto-1726073-3726111",
+      "evidenceSource": "direct",
+      "dest": "available-pdfs/kinto-source-review/2026-04-28_1855.00_KINTO-Share_kinto-1726073-3726111.pdf",
+      "original": "receipts/kinto/1726073-3726111.pdf"
+    },
+    {
+      "id": "kinto-1726073-3739081",
+      "evidenceSourceId": "kinto-1726073-3739081",
+      "evidenceSource": "direct",
+      "dest": "available-pdfs/kinto-source-review/2026-04-30_123.75_KINTO-Share_kinto-1726073-3739081.pdf",
+      "original": "receipts/kinto/1726073-3739081.pdf"
+    },
+    {
+      "id": "kinto-1741979-3760367",
+      "evidenceSourceId": "kinto-1741979-3760367",
+      "evidenceSource": "direct",
+      "dest": "available-pdfs/kinto-source-review/2026-05-05_1495.00_KINTO-Share_kinto-1741979-3760367.pdf",
+      "original": "receipts/kinto/1741979-3760367.pdf"
+    },
+    {
+      "id": "kinto-1741979-3772384",
+      "evidenceSourceId": "kinto-1741979-3772384",
+      "evidenceSource": "direct",
+      "dest": "available-pdfs/kinto-source-review/2026-05-07_281.25_KINTO-Share_kinto-1741979-3772384.pdf",
+      "original": "receipts/kinto/1741979-3772384.pdf"
+    }
+  ]
+}

@@ -1,0 +1,353 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const dataDir = path.join(root, "protected", "data");
+const receiptsFile = path.join(dataDir, "receipts.json");
+const stateFile = path.join(dataDir, "state.json");
+
+const validTags = new Set(["business", "personal", "needs-tag", "ignore"]);
+const validStatuses = new Set([
+  "ready",
+  "needs-receipt",
+  "pending-payout",
+  "done",
+  "needs-review",
+  "blocked",
+  "ignore",
+]);
+
+const money = new Intl.NumberFormat("sv-SE", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function readJson(file, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJson(file, value) {
+  fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function readReceiptsDb() {
+  const db = readJson(receiptsFile, { items: [] });
+  return {
+    ...db,
+    items: Array.isArray(db.items) ? db.items : [],
+  };
+}
+
+function readStateDb() {
+  const db = readJson(stateFile, { schemaVersion: 1, state: {} });
+  return {
+    schemaVersion: db.schemaVersion || 1,
+    importedAt: db.importedAt || null,
+    source: db.source || null,
+    exportedAt: db.exportedAt || null,
+    updatedAt: db.updatedAt || null,
+    state: db.state && typeof db.state === "object" ? db.state : {},
+  };
+}
+
+function cardEnding(item) {
+  const raw = String(item.cardEnding || item.account || "").replace(/\D/g, "");
+  return raw.length > 4 ? raw.slice(-4) : raw;
+}
+
+function isMidJuneOrLater(date) {
+  return String(date || "") >= "2026-06-15";
+}
+
+function inferTag(item) {
+  if (item.tag) return item.tag;
+  if ((item.status || "") === "ignore") return "ignore";
+  if ((item.status || "") === "done" || (item.status || "") === "pending-payout") return "business";
+  if (item.source === "KINTO") return "business";
+  const ending = cardEnding(item);
+  if (ending === "1022" || ending === "0122") return "business";
+  if (ending === "2004" && isMidJuneOrLater(item.date)) return "personal";
+  if (ending === "2004") return "needs-tag";
+  return "needs-tag";
+}
+
+function mergedItems() {
+  const receipts = readReceiptsDb().items;
+  const state = readStateDb().state;
+  return receipts.map(item => {
+    const merged = { ...item, ...(state[item.id] || {}) };
+    return {
+      ...merged,
+      cardEnding: cardEnding(merged),
+      tag: merged.tag || inferTag(merged),
+    };
+  });
+}
+
+function parseFlags(args) {
+  const flags = {};
+  const rest = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (!arg.startsWith("--")) {
+      rest.push(arg);
+      continue;
+    }
+    const [rawKey, rawValue] = arg.slice(2).split("=");
+    const key = rawKey.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    if (rawValue !== undefined) {
+      flags[key] = rawValue;
+    } else if (args[index + 1] && !args[index + 1].startsWith("--")) {
+      flags[key] = args[index + 1];
+      index += 1;
+    } else {
+      flags[key] = true;
+    }
+  }
+  return { flags, rest };
+}
+
+function filteredItems(flags) {
+  const query = String(flags.search || "").toLowerCase();
+  return mergedItems().filter(item => {
+    if (flags.source && item.source !== flags.source) return false;
+    if (flags.tag && item.tag !== flags.tag) return false;
+    if (flags.status && (item.status || "ready") !== flags.status) return false;
+    if (!query) return true;
+    const haystack = [
+      item.id,
+      item.source,
+      item.merchant,
+      item.date,
+      item.amount,
+      item.reference,
+      item.invoice,
+      item.purpose,
+      item.action,
+      item.operatorNote,
+    ].join(" ").toLowerCase();
+    return haystack.includes(query);
+  });
+}
+
+function formatMoney(value, currency = "SEK") {
+  return `${money.format(Number(value || 0))} ${currency || "SEK"}`;
+}
+
+function printJson(value) {
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+function row(item) {
+  return [
+    item.id,
+    item.status || "ready",
+    item.tag || "needs-tag",
+    item.date || "",
+    item.merchant || item.source || "",
+    formatMoney(item.amount, item.currency),
+    `card ${item.cardEnding || item.account || ""}`,
+    item.purpose || "",
+  ].join(" | ");
+}
+
+function commandSummary(flags) {
+  const items = filteredItems(flags);
+  const summary = {
+    rows: items.length,
+    amount: items.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    bySource: {},
+    byStatus: {},
+    byTag: {},
+  };
+  for (const item of items) {
+    const source = item.source || "Unknown";
+    const status = item.status || "ready";
+    const tag = item.tag || "needs-tag";
+    summary.bySource[source] = (summary.bySource[source] || 0) + 1;
+    summary.byStatus[status] = (summary.byStatus[status] || 0) + 1;
+    summary.byTag[tag] = (summary.byTag[tag] || 0) + 1;
+  }
+  if (flags.json) {
+    printJson(summary);
+    return;
+  }
+  console.log(`Rows: ${summary.rows}`);
+  console.log(`Amount: ${formatMoney(summary.amount)}`);
+  console.log(`Sources: ${Object.entries(summary.bySource).map(([key, value]) => `${key} ${value}`).join(", ")}`);
+  console.log(`Statuses: ${Object.entries(summary.byStatus).map(([key, value]) => `${key} ${value}`).join(", ")}`);
+  console.log(`Tags: ${Object.entries(summary.byTag).map(([key, value]) => `${key} ${value}`).join(", ")}`);
+}
+
+function commandList(flags) {
+  const items = filteredItems(flags).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  if (flags.json) {
+    printJson(items);
+    return;
+  }
+  if (!items.length) {
+    console.log("No receipts found.");
+    return;
+  }
+  for (const item of items) console.log(row(item));
+}
+
+function commandShow(id, flags) {
+  const item = mergedItems().find(candidate => candidate.id === id);
+  if (!item) throw new Error(`Unknown receipt id: ${id}`);
+  if (flags.json) {
+    printJson(item);
+    return;
+  }
+  console.log(row(item));
+  for (const [key, value] of Object.entries(item)) {
+    if (["id", "status", "tag", "date", "merchant", "amount", "currency"].includes(key)) continue;
+    if (value !== undefined && value !== "") console.log(`${key}: ${value}`);
+  }
+}
+
+function sanitizePatch(patch) {
+  const clean = {};
+  if (patch.tag) {
+    if (!validTags.has(patch.tag)) throw new Error(`Invalid tag: ${patch.tag}`);
+    clean.tag = patch.tag;
+  }
+  if (patch.status) {
+    if (!validStatuses.has(patch.status)) throw new Error(`Invalid status: ${patch.status}`);
+    clean.status = patch.status;
+  }
+  if (typeof patch.operatorNote === "string") clean.operatorNote = patch.operatorNote;
+  clean.updatedAt = patch.updatedAt || new Date().toISOString();
+  return clean;
+}
+
+function updateReceipt(id, patch) {
+  if (!mergedItems().some(item => item.id === id)) throw new Error(`Unknown receipt id: ${id}`);
+  const db = readStateDb();
+  db.state[id] = {
+    ...(db.state[id] || {}),
+    ...sanitizePatch(patch),
+  };
+  db.updatedAt = new Date().toISOString();
+  writeJson(stateFile, db);
+  console.log(row(mergedItems().find(item => item.id === id)));
+}
+
+function commandImportState(file) {
+  const incoming = readJson(path.resolve(file), null);
+  if (!incoming) throw new Error(`Could not read JSON: ${file}`);
+  const incomingState = incoming.state && typeof incoming.state === "object" ? incoming.state : incoming;
+  const knownIds = new Set(readReceiptsDb().items.map(item => item.id));
+  const db = readStateDb();
+  let imported = 0;
+  let skipped = 0;
+  for (const [id, patch] of Object.entries(incomingState)) {
+    if (!knownIds.has(id) || !patch || typeof patch !== "object") {
+      skipped += 1;
+      continue;
+    }
+    db.state[id] = {
+      ...(db.state[id] || {}),
+      ...sanitizePatch(patch),
+    };
+    imported += 1;
+  }
+  db.source = `Imported with bin/receipts from ${path.basename(file)}`;
+  db.exportedAt = incoming.exportedAt || db.exportedAt || null;
+  db.updatedAt = new Date().toISOString();
+  writeJson(stateFile, db);
+  console.log(`Imported ${imported} state entries, skipped ${skipped}.`);
+}
+
+function commandNext(flags) {
+  const business = filteredItems({ ...flags, tag: "business" })
+    .filter(item => !["done", "ignore", "pending-payout"].includes(item.status || "ready"))
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const personal = filteredItems({ ...flags, tag: "personal" })
+    .filter(item => (item.status || "ready") !== "ignore")
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  if (flags.json) {
+    printJson({ business, personal });
+    return;
+  }
+  console.log("Business follow-up");
+  for (const item of business) console.log(row(item));
+  console.log("");
+  console.log("Personal reconciliation");
+  for (const item of personal) console.log(row(item));
+}
+
+function commandHelp() {
+  console.log(`receipts CLI
+
+Usage:
+  bin/receipts summary [--source AMEX] [--json]
+  bin/receipts list [--source AMEX] [--tag business] [--status needs-receipt] [--search text] [--json]
+  bin/receipts next [--source AMEX] [--json]
+  bin/receipts show <receipt-id> [--json]
+  bin/receipts tag <receipt-id> <business|personal|needs-tag|ignore>
+  bin/receipts status <receipt-id> <ready|needs-receipt|pending-payout|done|needs-review|blocked|ignore>
+  bin/receipts note <receipt-id> <text>
+  bin/receipts import-state <dashboard-export.json>
+  bin/receipts export-state
+`);
+}
+
+function main() {
+  const [command = "help", ...args] = process.argv.slice(2);
+  const { flags, rest } = parseFlags(args);
+  switch (command) {
+    case "summary":
+      commandSummary(flags);
+      break;
+    case "list":
+      commandList(flags);
+      break;
+    case "next":
+      commandNext(flags);
+      break;
+    case "show":
+      if (!rest[0]) throw new Error("Missing receipt id.");
+      commandShow(rest[0], flags);
+      break;
+    case "tag":
+      if (!rest[0] || !rest[1]) throw new Error("Usage: bin/receipts tag <receipt-id> <tag>");
+      updateReceipt(rest[0], { tag: rest[1] });
+      break;
+    case "status":
+      if (!rest[0] || !rest[1]) throw new Error("Usage: bin/receipts status <receipt-id> <status>");
+      updateReceipt(rest[0], { status: rest[1] });
+      break;
+    case "note":
+      if (!rest[0] || rest.length < 2) throw new Error("Usage: bin/receipts note <receipt-id> <text>");
+      updateReceipt(rest[0], { operatorNote: rest.slice(1).join(" ") });
+      break;
+    case "import-state":
+      if (!rest[0]) throw new Error("Usage: bin/receipts import-state <dashboard-export.json>");
+      commandImportState(rest[0]);
+      break;
+    case "export-state":
+      printJson(readStateDb());
+      break;
+    case "help":
+    case "--help":
+    case "-h":
+      commandHelp();
+      break;
+    default:
+      throw new Error(`Unknown command: ${command}`);
+  }
+}
+
+try {
+  main();
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}

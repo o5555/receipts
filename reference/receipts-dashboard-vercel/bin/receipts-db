@@ -1,0 +1,337 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const receiptsFile = path.join(root, "protected", "data", "receipts.json");
+const stateFile = path.join(root, "protected", "data", "state.json");
+
+const validTags = new Set(["business", "personal", "needs-tag", "ignore"]);
+const validStatuses = new Set([
+  "ready",
+  "needs-receipt",
+  "pending-payout",
+  "done",
+  "needs-review",
+  "blocked",
+  "ignore",
+]);
+
+const money = new Intl.NumberFormat("sv-SE", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function config() {
+  const url = process.env.SUPABASE_URL?.replace(/\/$/, "");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
+  return { url, key };
+}
+
+function readJson(file, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+async function supabase(pathname, options = {}) {
+  const { url, key } = config();
+  const response = await fetch(`${url}/rest/v1/${pathname}`, {
+    ...options,
+    headers: {
+      apikey: key,
+      authorization: `Bearer ${key}`,
+      "content-type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!response.ok) {
+    throw new Error(data?.message || `Supabase returned ${response.status}`);
+  }
+  return data;
+}
+
+function parseFlags(args) {
+  const flags = {};
+  const rest = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (!arg.startsWith("--")) {
+      rest.push(arg);
+      continue;
+    }
+    const [rawKey, rawValue] = arg.slice(2).split("=");
+    const key = rawKey.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    if (rawValue !== undefined) {
+      flags[key] = rawValue;
+    } else if (args[index + 1] && !args[index + 1].startsWith("--")) {
+      flags[key] = args[index + 1];
+      index += 1;
+    } else {
+      flags[key] = true;
+    }
+  }
+  return { flags, rest };
+}
+
+function cardEnding(item) {
+  const raw = String(item.cardEnding || item.account || "").replace(/\D/g, "");
+  return raw.length > 4 ? raw.slice(-4) : raw;
+}
+
+function inferTag(item) {
+  if (item.tag) return item.tag;
+  if ((item.status || "") === "ignore") return "ignore";
+  if ((item.status || "") === "done" || (item.status || "") === "pending-payout") return "business";
+  if (item.source === "KINTO") return "business";
+  const ending = cardEnding(item);
+  if (ending === "1022" || ending === "0122") return "business";
+  if (ending === "2004" && String(item.date || "") >= "2026-06-15") return "personal";
+  if (ending === "2004") return "needs-tag";
+  return "needs-tag";
+}
+
+function normalizeStateRow(row) {
+  return {
+    ...(row.tag ? { tag: row.tag } : {}),
+    ...(row.status ? { status: row.status } : {}),
+    ...(row.operator_note ? { operatorNote: row.operator_note } : {}),
+    ...(row.updated_at ? { updatedAt: row.updated_at } : {}),
+    ...(row.updated_by ? { updatedBy: row.updated_by } : {}),
+  };
+}
+
+async function readItems() {
+  const [receiptRows, stateRows] = await Promise.all([
+    supabase("receipts?select=id,data&order=id.asc"),
+    supabase("receipt_state?select=receipt_id,tag,status,operator_note,updated_at,updated_by"),
+  ]);
+  const state = Object.fromEntries((stateRows || []).map(row => [row.receipt_id, normalizeStateRow(row)]));
+  return (receiptRows || []).map(row => {
+    const merged = { ...row.data, ...(state[row.id] || {}) };
+    return {
+      ...merged,
+      cardEnding: cardEnding(merged),
+      tag: merged.tag || inferTag(merged),
+    };
+  });
+}
+
+function filter(items, flags) {
+  const query = String(flags.search || "").toLowerCase();
+  return items.filter(item => {
+    if (flags.source && item.source !== flags.source) return false;
+    if (flags.tag && item.tag !== flags.tag) return false;
+    if (flags.status && (item.status || "ready") !== flags.status) return false;
+    if (!query) return true;
+    return [
+      item.id,
+      item.source,
+      item.merchant,
+      item.date,
+      item.amount,
+      item.reference,
+      item.invoice,
+      item.purpose,
+      item.action,
+      item.operatorNote,
+    ].join(" ").toLowerCase().includes(query);
+  });
+}
+
+function formatMoney(value, currency = "SEK") {
+  return `${money.format(Number(value || 0))} ${currency || "SEK"}`;
+}
+
+function row(item) {
+  return [
+    item.id,
+    item.status || "ready",
+    item.tag || "needs-tag",
+    item.date || "",
+    item.merchant || item.source || "",
+    formatMoney(item.amount, item.currency),
+    `card ${item.cardEnding || item.account || ""}`,
+    item.purpose || "",
+  ].join(" | ");
+}
+
+function printJson(value) {
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+function sanitizePatch(patch) {
+  const clean = {};
+  if (patch.tag !== undefined) {
+    if (!validTags.has(patch.tag)) throw new Error(`Invalid tag: ${patch.tag}`);
+    clean.tag = patch.tag;
+  }
+  if (patch.status !== undefined) {
+    if (!validStatuses.has(patch.status)) throw new Error(`Invalid status: ${patch.status}`);
+    clean.status = patch.status;
+  }
+  if (patch.operatorNote !== undefined) clean.operator_note = String(patch.operatorNote);
+  clean.updated_at = new Date().toISOString();
+  clean.updated_by = "cli";
+  return clean;
+}
+
+async function updateState(id, patch) {
+  await supabase("receipt_state?on_conflict=receipt_id", {
+    method: "POST",
+    headers: {
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify({ receipt_id: id, ...sanitizePatch(patch) }),
+  });
+  const item = (await readItems()).find(candidate => candidate.id === id);
+  console.log(item ? row(item) : id);
+}
+
+async function sync() {
+  const receipts = readJson(receiptsFile, { items: [] }).items || [];
+  const state = readJson(stateFile, { state: {} }).state || {};
+  const receiptRows = receipts.map(item => ({
+    id: item.id,
+    data: item,
+    updated_at: new Date().toISOString(),
+  }));
+  for (let index = 0; index < receiptRows.length; index += 500) {
+    await supabase("receipts?on_conflict=id", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify(receiptRows.slice(index, index + 500)),
+    });
+  }
+  const stateRows = Object.entries(state).map(([id, patch]) => ({
+    receipt_id: id,
+    ...sanitizePatch({ ...patch, updatedBy: "import" }),
+  }));
+  for (let index = 0; index < stateRows.length; index += 500) {
+    await supabase("receipt_state?on_conflict=receipt_id", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify(stateRows.slice(index, index + 500)),
+    });
+  }
+  console.log(`Synced ${receiptRows.length} receipts and ${stateRows.length} state rows.`);
+}
+
+async function summary(flags) {
+  const items = filter(await readItems(), flags);
+  const result = {
+    rows: items.length,
+    amount: items.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    bySource: {},
+    byStatus: {},
+    byTag: {},
+  };
+  for (const item of items) {
+    const source = item.source || "Unknown";
+    const status = item.status || "ready";
+    const tag = item.tag || "needs-tag";
+    result.bySource[source] = (result.bySource[source] || 0) + 1;
+    result.byStatus[status] = (result.byStatus[status] || 0) + 1;
+    result.byTag[tag] = (result.byTag[tag] || 0) + 1;
+  }
+  if (flags.json) {
+    printJson(result);
+    return;
+  }
+  console.log(`Rows: ${result.rows}`);
+  console.log(`Amount: ${formatMoney(result.amount)}`);
+  console.log(`Sources: ${Object.entries(result.bySource).map(([key, value]) => `${key} ${value}`).join(", ")}`);
+  console.log(`Statuses: ${Object.entries(result.byStatus).map(([key, value]) => `${key} ${value}`).join(", ")}`);
+  console.log(`Tags: ${Object.entries(result.byTag).map(([key, value]) => `${key} ${value}`).join(", ")}`);
+}
+
+async function list(flags) {
+  const items = filter(await readItems(), flags).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  if (flags.json) {
+    printJson(items);
+    return;
+  }
+  if (!items.length) {
+    console.log("No receipts found.");
+    return;
+  }
+  for (const item of items) console.log(row(item));
+}
+
+async function show(id, flags) {
+  const item = (await readItems()).find(candidate => candidate.id === id);
+  if (!item) throw new Error(`Unknown receipt id: ${id}`);
+  if (flags.json) {
+    printJson(item);
+    return;
+  }
+  console.log(row(item));
+  for (const [key, value] of Object.entries(item)) {
+    if (["id", "status", "tag", "date", "merchant", "amount", "currency"].includes(key)) continue;
+    if (value !== undefined && value !== "") console.log(`${key}: ${value}`);
+  }
+}
+
+function help() {
+  console.log(`receipts-db CLI
+
+Usage:
+  bin/receipts-db sync
+  bin/receipts-db summary [--source AMEX] [--json]
+  bin/receipts-db list [--source AMEX] [--tag business] [--status needs-receipt] [--search text] [--json]
+  bin/receipts-db show <receipt-id> [--json]
+  bin/receipts-db tag <receipt-id> <business|personal|needs-tag|ignore>
+  bin/receipts-db status <receipt-id> <ready|needs-receipt|pending-payout|done|needs-review|blocked|ignore>
+  bin/receipts-db note <receipt-id> <text>
+`);
+}
+
+async function main() {
+  const [command = "help", ...args] = process.argv.slice(2);
+  const { flags, rest } = parseFlags(args);
+  switch (command) {
+    case "sync":
+      await sync();
+      break;
+    case "summary":
+      await summary(flags);
+      break;
+    case "list":
+      await list(flags);
+      break;
+    case "show":
+      if (!rest[0]) throw new Error("Missing receipt id.");
+      await show(rest[0], flags);
+      break;
+    case "tag":
+      if (!rest[0] || !rest[1]) throw new Error("Usage: bin/receipts-db tag <receipt-id> <tag>");
+      await updateState(rest[0], { tag: rest[1] });
+      break;
+    case "status":
+      if (!rest[0] || !rest[1]) throw new Error("Usage: bin/receipts-db status <receipt-id> <status>");
+      await updateState(rest[0], { status: rest[1] });
+      break;
+    case "note":
+      if (!rest[0] || rest.length < 2) throw new Error("Usage: bin/receipts-db note <receipt-id> <text>");
+      await updateState(rest[0], { operatorNote: rest.slice(1).join(" ") });
+      break;
+    case "help":
+    case "--help":
+    case "-h":
+      help();
+      break;
+    default:
+      throw new Error(`Unknown command: ${command}`);
+  }
+}
+
+main().catch(error => {
+  console.error(error.message);
+  process.exit(1);
+});

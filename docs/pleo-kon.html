@@ -1,0 +1,204 @@
+<title>Pleo-kön</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f6f7f4;
+    --surface: #ffffff;
+    --surface-2: #eef1ed;
+    --ink: #1c2321;
+    --ink-2: #3c4744;
+    --muted: #5f6b66;
+    --rule: #d8ded9;
+    --rule-strong: #b9c3bd;
+    --accent: #1e5c4b;
+    --accent-ink: #174a3c;
+    --accent-soft: #e3efea;
+    --ok: #2f7a52;      --ok-soft: #e2f1e7;
+    --warn: #a86a12;    --warn-soft: #f7ecd8;
+    --crit: #b03a2e;    --crit-soft: #f7e3e0;
+    --dead: #6b7570;    --dead-soft: #e8ebe9;
+    --unk: #4f5f8a;     --unk-soft: #e4e8f3;
+    --shadow: 0 1px 2px rgba(28, 35, 33, 0.06), 0 8px 24px rgba(28, 35, 33, 0.05);
+    --display: "Bricolage Grotesque", "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+    --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #111614;
+      --surface: #181e1b;
+      --surface-2: #1f2623;
+      --ink: #e6ebe7;
+      --ink-2: #c9d1cc;
+      --muted: #98a39d;
+      --rule: #2a332e;
+      --rule-strong: #3b4741;
+      --accent: #6fbf9e;
+      --accent-ink: #8fd1b6;
+      --accent-soft: #1c2d26;
+      --ok: #7cc79a;    --ok-soft: #1b2f24;
+      --warn: #e0a85a;  --warn-soft: #33271a;
+      --crit: #e2847a;  --crit-soft: #36201d;
+      --dead: #9aa59f;  --dead-soft: #242b28;
+      --unk: #9fb0e0;   --unk-soft: #1f2533;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.25);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #111614;
+    --surface: #181e1b;
+    --surface-2: #1f2623;
+    --ink: #e6ebe7;
+    --ink-2: #c9d1cc;
+    --muted: #98a39d;
+    --rule: #2a332e;
+    --rule-strong: #3b4741;
+    --accent: #6fbf9e;
+    --accent-ink: #8fd1b6;
+    --accent-soft: #1c2d26;
+    --ok: #7cc79a;    --ok-soft: #1b2f24;
+    --warn: #e0a85a;  --warn-soft: #33271a;
+    --crit: #e2847a;  --crit-soft: #36201d;
+    --dead: #9aa59f;  --dead-soft: #242b28;
+    --unk: #9fb0e0;   --unk-soft: #1f2533;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.25);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  code, .num, .id { font-family: var(--mono); font-size: 0.92em; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .wrap { max-width: 76ch; margin: 0 auto; padding: 40px 22px 96px; }
+  @media (min-width: 900px) { .wrap { padding-top: 56px; } }
+
+  header.masthead { display: grid; gap: 14px; padding-bottom: 28px; border-bottom: 1px solid var(--rule-strong); margin-bottom: 36px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  h1 { font-family: var(--display); font-weight: 600; font-size: clamp(38px, 6vw, 56px); line-height: 1.02; margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+  .lede { font-size: 19px; line-height: 1.45; color: var(--ink-2); max-width: 62ch; margin: 0; text-wrap: pretty; }
+
+  h2 { font-family: var(--display); font-weight: 600; font-size: 26px; line-height: 1.15; margin: 56px 0 14px; letter-spacing: -0.01em; text-wrap: balance; }
+  h2 .k { font-family: var(--mono); font-weight: 500; font-size: 12px; letter-spacing: 0.08em; color: var(--muted); display: block; margin-bottom: 8px; text-transform: uppercase; }
+  h3 { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 28px 0 8px; letter-spacing: -0.005em; }
+  p { margin: 0 0 14px; text-wrap: pretty; }
+  ul, ol { margin: 0 0 14px; padding-left: 1.25em; }
+  li { margin: 0 0 8px; }
+  li::marker { color: var(--muted); }
+  .muted { color: var(--muted); }
+
+  .verdict { display: grid; gap: 10px; padding: 0; margin: 0 0 8px; list-style: none; }
+  .verdict li { display: grid; grid-template-columns: 10px 1fr; gap: 14px; align-items: start; padding: 12px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+  .verdict li::before { content: ""; width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--accent); }
+  .verdict li.crit::before { background: var(--crit); }
+  .verdict li.warn::before { background: var(--warn); }
+  .verdict li.ok::before { background: var(--ok); }
+
+  dl.figures { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0 0 10px; border-top: 1px solid var(--rule); }
+  dl.figures > div { display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+  dl.figures dt { margin: 0; font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  dl.figures dt small { font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 4px; letter-spacing: 0; }
+  dl.figures dd { margin: 0; color: var(--ink-2); }
+  dl.figures dd .src { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); margin: 0 0 12px; }
+  table.ledger { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 720px; }
+  table.ledger th { text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; padding: 12px 14px; border-bottom: 1px solid var(--rule-strong); background: var(--surface-2); }
+  table.ledger td { padding: 12px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  table.ledger tr:last-child td { border-bottom: 0; }
+  table.ledger td.c { white-space: nowrap; }
+  table.ledger td.name { font-weight: 600; color: var(--ink); }
+  table.ledger td.name small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border-radius: 999px; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.02em; font-weight: 500; white-space: nowrap; border: 1px solid transparent; }
+  .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .chip.ok   { color: var(--ok);   background: var(--ok-soft); }
+  .chip.warn { color: var(--warn); background: var(--warn-soft); }
+  .chip.crit { color: var(--crit); background: var(--crit-soft); }
+  .chip.dead { color: var(--dead); background: var(--dead-soft); }
+  .chip.unk  { color: var(--unk);  background: var(--unk-soft); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+
+  .lanes { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 18px 0 10px; }
+  @media (min-width: 720px) { .lanes { grid-template-columns: 1fr 1fr; } }
+  .lane { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 16px 14px; display: grid; gap: 8px; align-content: start; }
+  .lane .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); }
+  .lane h4 { font-family: var(--display); font-weight: 600; font-size: 17px; margin: 0; line-height: 1.2; }
+  .lane dl { margin: 0; display: grid; gap: 6px; font-size: 14px; }
+  .lane dl div { display: grid; grid-template-columns: 74px 1fr; gap: 10px; }
+  .lane dt { color: var(--muted); font-size: 12.5px; padding-top: 1px; }
+  .lane dd { margin: 0; color: var(--ink-2); }
+  .lane.prevent { grid-column: 1 / -1; background: var(--accent-soft); border-color: transparent; }
+  .plane { border: 1px dashed var(--rule-strong); border-radius: 8px; padding: 14px 16px; background: var(--surface-2); font-size: 14.5px; color: var(--ink-2); margin: 0 0 12px; }
+  .plane b { color: var(--ink); }
+
+  .qs { counter-reset: q; }
+  ol.q { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 10px; }
+  ol.q > li { counter-increment: q; display: grid; grid-template-columns: 40px 1fr; gap: 12px; padding: 14px 14px 12px 10px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; }
+  ol.q > li::before { content: counter(q, decimal-leading-zero); font-family: var(--mono); font-size: 13px; color: var(--accent-ink); padding-top: 3px; text-align: right; font-weight: 500; }
+  ol.q .ask { font-weight: 600; color: var(--ink); margin: 0 0 4px; }
+  ol.q .why { margin: 0; color: var(--muted); font-size: 14px; }
+  ol.q .why b { color: var(--ink-2); font-weight: 600; }
+  .groupnote { font-size: 14px; color: var(--muted); margin: -4px 0 12px; }
+
+  ul.todo { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 8px; }
+  ul.todo li { display: grid; grid-template-columns: 18px 1fr; gap: 12px; align-items: start; }
+  ul.todo li::before { content: ""; width: 14px; height: 14px; margin-top: 4px; border: 1.5px solid var(--rule-strong); border-radius: 3px; background: var(--surface); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--surface); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; font-size: 15px; }
+  .callout.crit { border-left-color: var(--crit); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
+  footer p { margin-bottom: 8px; }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+  .r { text-align: right; }
+  .mono { font-family: var(--mono); font-size: 13px; }
+  td.why { font-size: 13.5px; color: var(--ink-2); }
+  .ev { font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+  .evn { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .box { display: inline-block; font-family: var(--mono); font-size: 11px; padding: 2px 8px; border: 1px solid var(--rule-strong); border-radius: 4px; color: var(--muted); }
+  table.ledger td.name small { white-space: normal; }
+  .sum { font-family: var(--mono); font-size: 13px; color: var(--muted); margin: -6px 0 10px; }
+</style>
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow"><span>Viseo AB · Pleo card</span><span>Export 2026-01-01 to 2026-08-20</span><span>Built 2026-08-21</span></div>
+    <h1>Pleo-kön</h1>
+    <p class="lede">Your Pleo export, 181 rows, joined against Gmail. 26 card expenses have no receipt: 20 real ones and 6 Kivra fees. For each of the 20, the receipt was either found in your inbox with its message id, or confirmed absent with the portal that holds it. Nothing was forwarded or changed.</p>
+  </header>
+
+  <h2><span class="k">01</span>What the export settled</h2>
+  <ul class="verdict">
+    <li class="ok"><span><b>The 104 133,43 SEK reimbursement exists in Pleo</b> as a payout row dated 2026-04-23, reconciling 16 expenses, status NOT_EXPORTED. It was paid, not lost. Nicolina has not booked it because the receipts behind it are incomplete; the March Bazoom is one of them.</span></li>
+    <li class="ok"><span><b>The July Pocket run was paid out:</b> two reimbursements on 2026-07-09, 61 122,54 and 7 111,25 SEK, both EXPORTED to Fortnox. Those entries were real.</span></li>
+    <li class="warn"><span><b>The export queue has not been emptied since January.</b> 123 rows sit QUEUED (January to May, some June), 31 EXPORTED, 27 NOT_EXPORTED. Someone needs to click Export, or Nicolina is booking from somewhere else.</span></li>
+    <li class="warn"><span><b>Kivra fees do land in Pleo</b>, six of them, all without receipts. The "never chase Kivra" rule and Nicolina's "Kivra receipts missing" are now the same six rows.</span></li>
+    <li class="crit"><span><b>Not in the export:</b> out-of-pocket expenses themselves (75 of the 80 receipt numbers the payouts reference are absent), 5555 Media AB, and any other cardholder. Those need two more downloads.</span></li>
+  </ul>
+
+  <h2><span class="k">02</span>The 20 missing receipts</h2>
+  <p class="sum">Sorted by how little it takes. Forward means the email is in your inbox with the right PDF and the charge is under 40 days old.</p>
+  <div class="tablewrap"><table class="ledger"><thead><tr><th>Date</th><th>Pleo</th><th>Merchant</th><th>SEK</th><th>Route and evidence</th><th>Action</th></tr></thead><tbody><tr><td class="c mono">2026-08-17</td><td class="c mono">#2600500</td><td class="name">FIRECRAWL.DEV</td><td class="c num r">981,09</td><td><span class="chip warn">confirm in app</span><div class="ev">Gmail 1a00b4197febe90c, Receipt-2669-4757.pdf. Forwarded today 13:28; Pleo answered &quot;Delvis kvittomatchning&quot;.</div></td><td class="why">Open Pleo app, receipt inbox, confirm #2669-4757 against this row.</td></tr><tr><td class="c mono">2026-07-17</td><td class="c mono">#2600486</td><td class="name">FIRECRAWL.DEV</td><td class="c num r">992,79</td><td><span class="chip warn">confirm in app</span><div class="ev">Gmail 19f6b9ba3d4f9e82, Receipt-2214-9671.pdf. Forwarded today 13:29; Pleo answered &quot;Delvis kvittomatchning&quot;.</div></td><td class="why">Same receipt inbox, confirm #2214-9671 against this row. Both Firecrawl receipts are 99 USD, which is why Pleo could not pick.</td></tr><tr><td class="c mono">2026-07-20</td><td class="c mono">#2600487</td><td class="name">SUPABASE</td><td class="c num r">529,90</td><td><span class="chip ok">forward</span><div class="ev">Gmail 19f7a170e1e4f42d, Receipt-UCRMNC-00014.pdf, 53,71 USD exact.</div></td><td class="why">Forward the email to forward@fetch.pleo.io. 32 days old, still inside the window.</td></tr><tr><td class="c mono">2026-07-23</td><td class="c mono">#2600490</td><td class="name">ANTHROPIC Claude Max</td><td class="c num r">2 036,55</td><td><span class="chip ok">forward</span><div class="ev">Gmail 19f8bf4687f5bfcb, Receipt-2419-6258-3165.pdf, 180 EUR exact.</div></td><td class="why">Forward to forward@fetch.pleo.io. 29 days old.</td></tr><tr><td class="c mono">2026-08-02</td><td class="c mono">#2600494</td><td class="name">WWW.BRAVE.COM</td><td class="c num r">49,11</td><td><span class="chip ok">forward</span><div class="ev">Gmail 19fbcccf704e97b7, Receipt-2539-6880.pdf, 5 USD exact.</div></td><td class="why">Forward to forward@fetch.pleo.io.</td></tr><tr><td class="c mono">2026-08-12</td><td class="c mono">#2600497</td><td class="name">GOOGLE One</td><td class="c num r">178,68</td><td><span class="chip ok">forward</span><div class="ev">Gmail 19ff136568daecc3, Google Play HTML receipt, 18,38 USD exact (Google AI Plus 2 TB + YouTube Premium add-on).</div></td><td class="why">Forward to forward@fetch.pleo.io; Pleo has matched this format before.</td></tr><tr><td class="c mono">2026-07-25</td><td class="c mono">#2600491</td><td class="name">APPLE.COM/BILL</td><td class="c num r">129,00</td><td><span class="chip ok">forward or attach</span><div class="ev">Gmail 19f95664b092296e, HTML invoice, 129,00 kr, card 3776.</div></td><td class="why">Forward the email (Pleo renders HTML) or save as PDF and attach.</td></tr><tr><td class="c mono">2026-07-11</td><td class="c mono">#2600483</td><td class="name">VERCEL INC.</td><td class="c num r">197,62</td><td><span class="chip unk">attach direct</span><div class="ev">Gmail 19f4dac84ce2b2d9, Receipt-2513-0697.pdf, 20 USD exact.</div></td><td class="why">41 days old, past the forwarding window. Download PDF, attach on the expense.</td></tr><tr><td class="c mono">2026-07-12</td><td class="c mono">#2600484</td><td class="name">Google One</td><td class="c num r">182,66</td><td><span class="chip unk">attach direct</span><div class="ev">Gmail 19f51911cac9db74, Google Play HTML receipt, 18,38 USD exact.</div></td><td class="why">On the 40-day edge. Save as PDF, attach on the expense.</td></tr><tr><td class="c mono">2026-08-14</td><td class="c mono">#2600498</td><td class="name">ANTHROPIC Claude 22,50 EUR</td><td class="c num r">253,05</td><td><span class="chip crit">portal</span><div class="ev">No receipt in any mailbox. Recurs on the 14th (Jun, Jul, Aug). 22,50 EUR = Claude Pro 18 EUR + VAT. You asked Anthropic support on 2026-07-09, unresolved.</div></td><td class="why">Find which claude.ai login owns this Pro plan; Settings, Billing, invoice history. Fixes all three rows.</td></tr><tr><td class="c mono">2026-07-14</td><td class="c mono">#2600485</td><td class="name">ANTHROPIC Claude 22,50 EUR</td><td class="c num r">254,19</td><td><span class="chip crit">portal</span><div class="ev">Same subscription as above.</div></td><td class="why">Same. Leaves the forwarding window 2026-08-23.</td></tr><tr><td class="c mono">2026-06-14</td><td class="c mono">#2600481</td><td class="name">ANTHROPIC Claude 22,50 EUR</td><td class="c num r">252,63</td><td><span class="chip crit">portal</span><div class="ev">Same subscription as above.</div></td><td class="why">Same; attach directly (older than 40 days).</td></tr><tr><td class="c mono">2026-08-08</td><td class="c mono">#2600495</td><td class="name">OPENAI ChatGPT</td><td class="c num r">1 996,00</td><td><span class="chip crit">portal</span><div class="ev">No receipt in any mailbox; ChatGPT Pro 200 USD registered to a login outside viseo.se, 5555.media and your Gmail.</div></td><td class="why">chatgpt.com, Settings, Subscription, Manage (Stripe portal), invoice history.</td></tr><tr><td class="c mono">2026-07-22</td><td class="c mono">#2600489</td><td class="name">SN.NORD (NordVPN)</td><td class="c num r">210,00</td><td><span class="chip crit">portal</span><div class="ev">Nord emailed only the initial order on 2026-05-21; no renewal receipts.</div></td><td class="why">my.nordaccount.com, Billing, payment history, download July invoice.</td></tr><tr><td class="c mono">2026-07-28</td><td class="c mono">#2600492</td><td class="name">SATS SportsClub</td><td class="c num r">753,00</td><td><span class="chip crit">portal</span><div class="ev">No SATS email since the May PDF from kundservice.</div></td><td class="why">sats.se Mina sidor, Betalningar, or email kundservice@sats.se as in May.</td></tr><tr><td class="c mono">2026-04-11</td><td class="c mono">#2600277</td><td class="name">Koinly</td><td class="c num r">554,07</td><td><span class="chip crit">portal</span><div class="ev">Never emailed to any mailbox here. Marked personal, inside the April payout.</div></td><td class="why">app.koinly.io, Settings, Billing, invoices. Attach directly.</td></tr><tr><td class="c mono">2026-04-08</td><td class="c mono">#2600276</td><td class="name">FIREFLIES.AI</td><td class="c num r">48,69</td><td><span class="chip crit">portal</span><div class="ev">Account cancelled; Fireflies support said invoice cannot be retrieved (thread 19e1b335124b12c7, auto-closed 2026-05-12) and offered a written confirmation.</div></td><td class="why">Reply in that thread asking for the written confirmation, attach it. Marked personal.</td></tr><tr><td class="c mono">2026-04-02</td><td class="c mono">#2600275</td><td class="name">Zettle Rocoto Import</td><td class="c num r">60,00</td><td><span class="chip crit">portal</span><div class="ev">Card-terminal purchase, no e-receipt requested.</div></td><td class="why">Ask the merchant for a copy, or attach a note. Marked personal.</td></tr><tr><td class="c mono">2026-02-02</td><td class="c mono">#2600091</td><td class="name">Kindle Svcs</td><td class="c num r">49,35</td><td><span class="chip crit">portal</span><div class="ev">No Amazon email in 2026; USD amount points to an amazon.com login outside this mailbox.</div></td><td class="why">amazon.com, Your Orders, Digital Orders, invoice for 2026-02-02. Marked personal.</td></tr><tr><td class="c mono">2026-01-19</td><td class="c mono">#2600031</td><td class="name">FOUNDMYFITNESS</td><td class="c num r">94,35</td><td><span class="chip crit">portal</span><div class="ev">Never emailed here.</div></td><td class="why">foundmyfitness.com membership billing (Stripe). Marked personal.</td></tr></tbody></table></div>
+  <div class="callout"><p><b>Two forwards already happened today</b> (both Firecrawl receipts, 13:28 and 13:29). Pleo could not tell the two 99 USD receipts apart and is waiting for a tap in the app's receipt inbox. Do not forward them again.</p></div>
+  <div class="callout crit"><p><b>Five subscriptions are registered to a login none of your mailboxes sees:</b> the 22,50 EUR Claude Pro, ChatGPT Pro, Koinly, Kindle and FoundMyFitness. Their receipts will never arrive by email and will be missing every month until that login forwards into viseo.se or the billing email is changed. Finding which account owns the Claude Pro plan closes three rows at once.</p></div>
+
+  <h2><span class="k">03</span>Kivra, six rows</h2>
+  <ul><li><span class="mono">2026-04-20 #2600477</span> 123,75 SEK</li><li><span class="mono">2026-05-01 #2600479</span> 123,75 SEK</li><li><span class="mono">2026-05-20 #2600480</span> 123,75 SEK</li><li><span class="mono">2026-06-20 #2600482</span> 123,75 SEK</li><li><span class="mono">2026-07-20 #2600488</span> 123,75 SEK</li><li><span class="mono">2026-08-20 #2600503</span> 123,75 SEK</li></ul>
+  <p class="muted">One question to Nicolina resolves all six: attach the Kivra invoice on each Pleo row, or leave them and let her book from the Kivra mailbox. Nothing Kivra-related has ever reached the Fortnox supplier inbox, so the second option is currently not happening either.</p>
+
+  <h2><span class="k">04</span>Still flagged by Nicolina</h2>
+  <p>Nine expenses carry her comment "finns fullständigt underlag?" (SATS 04-28, OpenAI x5, Google Cloud 05-08, Supabase 05-20, Claude.ai 05-14). All have a file attached, but 23 of the 151 attachments in the export are PNG or JPG screenshots, which is what she is objecting to. The July handover's fix still stands: attach the real PDF on each and press Klar.</p>
+
+  <footer><p>Source: Pleo export export_2026-01-01_2026-12-31.csv and its receipts folder, joined to Gmail via Thor's read-only mail access on 2026-08-21. Message ids per row. No email sent, no Pleo change.</p></footer>
+</div>
