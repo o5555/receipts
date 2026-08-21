@@ -22,6 +22,10 @@ scripts/pleo_export_profile.py data/pleo/expenses_2026-08-21 --missing-csv out/p
 scripts/gmail_fetch.py links <msg_id> --reason "..."              # attachments and https links
 scripts/gmail_fetch.py save  <msg_id> out/receipts --prefix 2600500 --reason "..."
 scripts/gmail_fetch.py html  <msg_id> out/receipts/x.html --reason "..."   # HTML-only receipts
+
+# Match a worklist against Gmail (read-only, cached in out/gmail-cache.json; run --dry-run first on a new ledger)
+scripts/gmail_match.py out/pleo-missing-receipts-2026-08-21.csv --entity viseo --short-csv out/gmail-matches-pleo-short.csv --reason "..."
+scripts/gmail_match.py --check out/receipts/MATCHING.csv --reason "..."   # regression: the 9 known receipts must rank first
 ```
 
 Stdlib-only Python 3, no build, no dependency manager. Classification is deliberately not in `amex_import.py`; it is a separate step that carries Oscar's tags.
