@@ -5,7 +5,7 @@ Viseo's receipts system: get every receipt to where the accountant needs it with
 ## State on 2026-08-21 (read this first)
 
 - Pleo Fetch has been disconnected for both entities since 2026-04-29/30. Nothing auto-matches. Every match since came from Oscar forwarding emails to `forward@fetch.pleo.io`.
-- Viseo AB upgraded Pleo from Essential to Advanced on 2026-08-21 and granted Pleo MCP access. The MCP server is registered in Claude Code at user scope (`pleo`, `https://mcp.pleo.io/mcp`, OAuth callback port 19876) and still needs Oscar's one-time login: run `/mcp`, pick `pleo`, authenticate, with `ssh -L 19876:localhost:19876 odin@odins-mac-mini` open from the MacBook, or via Screen Sharing.
+- Viseo AB upgraded Pleo from Essential to Advanced on 2026-08-21 and granted Pleo MCP access. The MCP server is registered in Claude Code at user scope (`pleo`, `https://mcp.pleo.io/mcp`, OAuth callback port 19876) and still needs Oscar's one-time login. No tunnel is needed: the session's `mcp__pleo__authenticate` tool returns an authorization URL, Oscar opens it on any device, approves, and pastes the resulting `http://localhost:19876/callback?code=...&state=...` address (the page itself fails to load, the URL is still valid) back into the session for `mcp__pleo__complete_authentication`.
 - 5555 Media AB is on Pleo's free plan, has no MCP, and will most likely leave Pleo. It keeps the forward-to-Fetch path (from `oscar@5555.media`, never from viseo.se) until then.
 - Oscar's mailbox `oscar.sandstrom@viseo.se` aggregates `oscar@5555.media` and the personal Gmail. Thor has read-only access to it via `/Users/odin/thor/projects/email-access/gmail_dwd_read.py` (search and read, no attachment download implemented, no send). The claude.ai Gmail connector is unreliable across logins; prefer the local script.
 - The Amex feed is a manual portal CSV export. There is no machine feed for a Swedish Amex card (see OBrain source `sources/2026-08-21-pleo-alternative-research.md`).
@@ -18,6 +18,7 @@ Viseo's receipts system: get every receipt to where the accountant needs it with
 - `out/` generated ledgers and worklists (gitignored).
 - `scripts/amex_import.py` normalises Amex exports into one de-duplicated ledger. Tested on the three May to August 2026 files: 149 rows, 137 charges, 263 984,07 SEK.
 - `scripts/pleo_export_profile.py` profiles a Pleo download and lists rows without receipts. Tested on the 2026-08-21 export: 181 rows, 30 without receipts.
+- `scripts/gmail_fetch.py` read-only receipt fetcher on top of Thor's Gmail DWD script (`links`, `save`, `html` subcommands, `--reason` required, audited). On 2026-08-21 it saved the 9 Gmail-located Pleo receipts (Vercel, Google One x2, Firecrawl x2, Supabase, Anthropic Max, Apple, Brave) into `out/receipts/`; HTML-only receipts were rendered to PDF. `out/receipts/MATCHING.csv` maps each Pleo receipt number and expense id to the file to attach.
 - `docs/` the three review pages as published on 2026-08-21: `kvittolaget.html` (setup review and decisions), `amex-kon.html` (Amex worklist), `pleo-kon.html` (Pleo missing-receipt worklist).
 - `reference/` prior art: the June dashboard CLIs and API code, the July closeout pack README and manifest, the July lane proposal, and the research journals with Gmail message ids (`reference/evidence/`, gitignored).
 
@@ -41,7 +42,7 @@ Safety rules: no payout or finance-impacting write without Oscar's approval per 
 
 ## Next actions
 
-1. Oscar completes the Pleo MCP OAuth. Then: enumerate tools, read both the missing list and the receipt inbox, confirm the two Firecrawl partial matches, attach the receipts already located in `out/pleo-missing-receipts-2026-08-21.csv`.
+1. Oscar completes the Pleo MCP OAuth (paste the callback URL, see State). Then: enumerate tools, read both the missing list and the receipt inbox, confirm the two Firecrawl partial matches, and attach the 9 files in `out/receipts/MATCHING.csv` (status `ready`) after Oscar approves the batch. The Vercel and 2026-07-12 Google One rows are past the 40-day forwarding window, so MCP attach is the only route for them.
 2. Get the two missing Pleo downloads: out-of-pocket expenses for Viseo AB, and 5555 Media AB (both types).
 3. Build `scripts/classify.py` (card rules plus Oscar's tags), `scripts/gmail_match.py` (wrap the DWD script, vendor and amount windows, 40-day rule), and the queue store.
 4. Wire an OpenClaw cron for Lane A once one manual run is clean.

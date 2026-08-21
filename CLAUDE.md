@@ -6,7 +6,7 @@ Read `README.md` first; it carries the current state, lanes, open decisions and 
 
 - Durable facts, card rules, accountant decisions and timeline: `/Users/odin/obrain/projects/pleo-api.md` (OBrain). Update OBrain when a rule or decision changes; do not keep a second copy here.
 - Runtime mail access: `/Users/odin/thor/projects/email-access/gmail_dwd_read.py` (read-only list and read, needs `--reason`, no attachment download, no send). Prefer it over the claude.ai Gmail connector, which breaks across logins.
-- Pleo: the `pleo` MCP server registered in Claude Code at user scope (`https://mcp.pleo.io/mcp`, OAuth callback port 19876). Viseo AB only; 5555 Media AB has no MCP. Reads are always fine. Writes (attach receipt, categorise, queue export) only after showing Oscar the batch and getting a yes. Never payouts.
+- Pleo: the `pleo` MCP server registered in Claude Code at user scope (`https://mcp.pleo.io/mcp`, OAuth callback port 19876; OAuth completes by pasting the localhost callback URL into `mcp__pleo__complete_authentication`, no tunnel needed). Viseo AB only; 5555 Media AB has no MCP. Reads are always fine. Writes (attach receipt, categorise, queue export) only after showing Oscar the batch and getting a yes. Never payouts.
 - Fortnox: the `fortnox` CLI in Thor (`~/.local/bin/fortnox`), dry-run first, exact approval phrase before `--execute`. Token lacks bookkeeping and inbox scopes today.
 
 ## Commands
@@ -17,6 +17,11 @@ scripts/amex_import.py data/amex/*.csv --out out/amex.normalized.json --csv out/
 
 # Profile a Pleo export folder (export_*.csv plus receipts/) and list rows lacking a receipt
 scripts/pleo_export_profile.py data/pleo/expenses_2026-08-21 --missing-csv out/pleo-missing.csv
+
+# Read-only Gmail receipt fetch (wraps Thor's DWD script; --reason is audited)
+scripts/gmail_fetch.py links <msg_id> --reason "..."              # attachments and https links
+scripts/gmail_fetch.py save  <msg_id> out/receipts --prefix 2600500 --reason "..."
+scripts/gmail_fetch.py html  <msg_id> out/receipts/x.html --reason "..."   # HTML-only receipts
 ```
 
 Stdlib-only Python 3, no build, no dependency manager. Classification is deliberately not in `amex_import.py`; it is a separate step that carries Oscar's tags.
