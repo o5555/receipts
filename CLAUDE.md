@@ -1,10 +1,13 @@
-# CLAUDE.md
+# Receipts project guidance
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Read `README.md` first; it carries the current state, lanes, open decisions and next actions. This is Oscar's (Viseo AB) receipts system, not a software product: raw card statements (American Express) and Pleo exports become worklists of transactions that still need a receipt, joined against evidence in Gmail, and eventually attached in Pleo or booked in Fortnox without manual forwarding.
 
-## What this is
+## Sources of truth
 
-A personal receipts/expense-reconciliation workspace for Oscar (Viseo AB), not a software product. It turns raw card statements (American Express) and Pleo expense exports into worklists of transactions that still need a receipt, and joins them against evidence found in Gmail. The scripts are small stdlib-only Python 3; there is no build, test suite, linter, or dependency manager.
+- Durable facts, card rules, accountant decisions and timeline: `/Users/odin/obrain/projects/pleo-api.md` (OBrain). Update OBrain when a rule or decision changes; do not keep a second copy here.
+- Runtime mail access: `/Users/odin/thor/projects/email-access/gmail_dwd_read.py` (read-only list and read, needs `--reason`, no attachment download, no send). Prefer it over the claude.ai Gmail connector, which breaks across logins.
+- Pleo: the `pleo` MCP server registered in Claude Code at user scope (`https://mcp.pleo.io/mcp`, OAuth callback port 19876). Viseo AB only; 5555 Media AB has no MCP. Reads are always fine. Writes (attach receipt, categorise, queue export) only after showing Oscar the batch and getting a yes. Never payouts.
+- Fortnox: the `fortnox` CLI in Thor (`~/.local/bin/fortnox`), dry-run first, exact approval phrase before `--execute`. Token lacks bookkeeping and inbox scopes today.
 
 ## Commands
 
@@ -12,25 +15,27 @@ A personal receipts/expense-reconciliation workspace for Oscar (Viseo AB), not a
 # Normalise Amex portal exports (dedupes overlapping statement windows by Referens)
 scripts/amex_import.py data/amex/*.csv --out out/amex.normalized.json --csv out/amex.normalized.csv
 
-# Profile a Pleo export folder (export_*.csv + receipts/) and list rows lacking a receipt
+# Profile a Pleo export folder (export_*.csv plus receipts/) and list rows lacking a receipt
 scripts/pleo_export_profile.py data/pleo/expenses_2026-08-21 --missing-csv out/pleo-missing.csv
 ```
 
-Both print a summary to stderr/stdout and accept no other configuration.
+Stdlib-only Python 3, no build, no dependency manager. Classification is deliberately not in `amex_import.py`; it is a separate step that carries Oscar's tags.
 
-## Layout and data flow
+## Layout
 
-- `data/` — raw inputs, gitignored. `data/amex/activity*.csv` are Amex SE portal downloads (MM/DD/YYYY dates, sv-SE amounts with Unicode minus on credits). `data/pleo/expenses_<date>/` is an unzipped Pleo "Export page → Download" (DD-MM-YYYY dates; receipt files named by Pleo receipt number, suffix `a`/`b` for multiple files).
-- `scripts/` — parsers only. Classification (business / personal / ignore) is deliberately **not** done in `amex_import.py`; `*.classified.*` outputs in `out/` came from a separate step and carry the tag, the reason (`why`), whether the row is already in Pleo, and the dashboard id.
-- `out/` — generated ledgers and queues (`amex-*.normalized.*`, `amex-*.classified.*`, `amex-queue-*.csv`, `pleo-missing-receipts-*.csv`), gitignored.
-- `docs/` — self-contained HTML status pages written in Swedish titles (`kvittolaget.html` = overall state, `amex-kon.html` = Amex queue, `pleo-kon.html` = Pleo queue). They are reports, not an app.
-- `reference/` — history from the July 2026 attempt: `receipt-ops-proposal-2026-07-06.md` (the lane model below), `expense-closeout-pack-2026-07-06/` (accountant pack, CSVs gitignored), `receipts-dashboard-vercel/` (an abandoned Vercel/Supabase dashboard with a `bin/receipts` CLI; JSON state gitignored), and `reference/evidence/` (workflow journals, gitignored).
+- `data/` raw inputs, gitignored. `data/amex/activity*.csv` (Amex SE portal, MM/DD/YYYY dates, sv-SE amounts with Unicode minus on credits). `data/pleo/expenses_<date>/` (Pleo Export page, Download; DD-MM-YYYY dates; receipt files named by Pleo receipt number, suffix a/b for multiple files).
+- `out/` generated ledgers and queues, gitignored.
+- `docs/` the published status pages: `kvittolaget.html` (overall review), `amex-kon.html`, `pleo-kon.html`. Reports, not an app.
+- `reference/` the July 2026 attempt (lane proposal, closeout pack, abandoned Vercel dashboard) and research journals with Gmail message ids.
 
-## Domain rules worth knowing
+## Rules
 
-- Card accounts: `-61022` (card ending 1022) is the business Amex, `-62004` (ending 2004) is personal. Business card defaults to business; Oscar's override wins.
-- The unit of work is a transaction outcome, not a PDF. Lanes from the proposal: Pleo-card missing receipt (forward to `forward@fetch.pleo.io` / Pleo Fetch), Pleo-card denied receipt (upload full invoice PDF to the existing expense), external-card spend (Pleo Pocket reimbursement only if wanted, otherwise Fortnox/accountant pack), personal reconciliation kept separate.
-- Kivra service fees (123.75 SEK, ~twice a month) are never chased; the accountant handles them.
-- Pleo card-expense exports contain card purchases and payout rows only; out-of-pocket expenses appear solely as references in `Reconciled Entries`.
-- Nothing in this repo should send email, forward to Fetch, submit Pleo expenses, or write to Fortnox without explicit approval of the specific batch. Scripts and pages are read-only worklists by design.
-- Amounts are SEK unless a `foreign` object/`Orig. currency` says otherwise; keep sv-SE parsing (`parse_amount` / `amt`) when adding new inputs.
+- Tell Oscar what information or access you need before working; do not proceed on assumptions about what is in Pleo, in a mailbox, or on a card.
+- Ask Oscar to tag business versus personal; never infer it for ambiguous merchants. Business card ·1022 (account -61022) defaults to business, ·2004 (-62004) to personal; Oscar's override wins. Rules for -13003 and -61006 are unresolved, see OBrain.
+- Match receipts by account, amount and date. Never by the last four digits on a receipt; vendors show card tokens.
+- Pleo auto-matches forwarded receipts only for charges under 40 days old; older ones must be attached on the expense.
+- 5555 Media receipts must be forwarded from `oscar@5555.media`, not from viseo.se.
+- Kivra fees (123,75 SEK) do appear as Pleo rows without receipts and the accountant has listed them as missing; the old "never chase Kivra" rule is unconfirmed until Trimero answers.
+- Pleo card exports contain card purchases and payout rows only; out-of-pocket expenses appear solely as references in `Reconciled Entries`.
+- Nothing here sends email, forwards to Fetch, submits Pleo expenses, or writes to Fortnox without explicit approval of the specific batch.
+- Keep raw exports, receipts and PDFs out of git. Plain text, no em dashes, amounts in Swedish format (1 234,56 SEK) in anything Oscar or Trimero reads.
