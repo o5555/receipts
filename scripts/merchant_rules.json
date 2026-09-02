@@ -1,0 +1,245 @@
+{
+  "_comment": "Merchant rules for scripts/classify.py. First match wins (top to bottom). Patterns are case-insensitive substrings of the Amex merchant text. tag: business|personal|needs-tag or null (no tag opinion, kontering only; card default decides). entity: viseo|5555media. vat_regime vocabulary (consumed by fortnox_lane.py): domestic25, domestic12, domestic6, domestic25_half, eu_rc, noneu_rc, oss_pending, none. Kontering per the 2026-08-24 proposal, pending Nicolina's one-time review.",
+  "rules": [
+    {
+      "name": "Anthropic",
+      "patterns": ["ANTHROPIC"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "noneu_rc",
+      "note": "Both subscriptions Viseo business per Oscar 2026-08-24. US-established (IE VAT reg on invoice); ruta 21 vs 22 is Nicolina's call, posting identical."
+    },
+    {
+      "name": "Firecrawl",
+      "patterns": ["FIRECRAWL"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "noneu_rc",
+      "note": "Viseo AB per Oscar 2026-08-24. Sideguide Technologies Inc, US, reverse charge verified on invoice."
+    },
+    {
+      "name": "Supabase",
+      "patterns": ["SUPABASE"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "noneu_rc",
+      "note": ""
+    },
+    {
+      "name": "Vercel",
+      "patterns": ["VERCEL"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "noneu_rc",
+      "note": ""
+    },
+    {
+      "name": "Brave",
+      "patterns": ["BRAVE.COM", "BRAVE SOFTWARE"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "noneu_rc",
+      "note": ""
+    },
+    {
+      "name": "Ahrefs",
+      "patterns": ["AHREFS"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "noneu_rc",
+      "note": "Singapore. Receipts show card token ending 1006; never match by last four."
+    },
+    {
+      "name": "Google One",
+      "patterns": ["GOOGLE ONE", "GOOGLE *GOOGLE ONE"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "noneu_rc",
+      "note": "US billing profile on saved receipts (small US tax line). Flips to eu_rc if seller is Google Commerce Ltd; flagged for Nicolina."
+    },
+    {
+      "name": "OpenAI / ChatGPT",
+      "patterns": ["OPENAI", "CHATGPT"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "oss_pending",
+      "note": "Likely OpenAI Ireland reverse charge, but receipt not yet inspected (portal-only login). Flip to eu_rc once a receipt confirms 0% RC."
+    },
+    {
+      "name": "NordVPN",
+      "patterns": ["NORDVPN", "SN.NORD"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "oss_pending",
+      "note": "Entity varies; portal invoice decides RC vs OSS."
+    },
+    {
+      "name": "DataForSEO (Paddle)",
+      "patterns": ["DATAFORSEO", "PADDLE"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "oss_pending",
+      "note": "Paddle UK merchant of record. With VAT-id registered: noneu_rc. Check tax line per receipt."
+    },
+    {
+      "name": "Bazoom",
+      "patterns": ["BAZOOM"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "5910",
+      "konto_name": "Annonsering",
+      "vat_regime": "eu_rc",
+      "note": "Bazoom Group ApS, Denmark. Link building. Verify each invoice is issued to Viseo AB with SE VAT."
+    },
+    {
+      "name": "Wincher",
+      "patterns": ["WINCHER"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "domestic25",
+      "note": "Swedish AB invoicing in EUR; deduct the SEK VAT amount stated on the invoice."
+    },
+    {
+      "name": "Microsoft / Bing Ads",
+      "patterns": ["MICROSOFT", "MSFT", "BING"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "5910",
+      "konto_name": "Annonsering",
+      "vat_regime": "eu_rc",
+      "note": "LSB's ad budget paid through Viseo; vidarefakturering convention is a Nicolina question."
+    },
+    {
+      "name": "Oderland",
+      "patterns": ["ODERLAND"],
+      "tag": "business",
+      "entity": "5555media",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "domestic25",
+      "note": "Invoiced to 5555 Media AB per Oscar 2026-08-24. Excluded from the Viseo utlagg batch; 5555 Media reimburses via its own books."
+    },
+    {
+      "name": "KINTO",
+      "patterns": ["KINTO"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "5820",
+      "konto_name": "Hyrbilskostnader",
+      "vat_regime": "domestic25_half",
+      "note": "Passenger-car rental: only half the VAT deductible. The 499 kr monthly plan's business status is still pending Oscar's ruling."
+    },
+    {
+      "name": "Kivra",
+      "patterns": ["KIVRA"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6590",
+      "konto_name": "Ovriga externa tjanster",
+      "vat_regime": "domestic25",
+      "note": "Rides the Pleo card, not Amex; follows the Pleo export path. Evidencing pending Nicolina."
+    },
+    {
+      "name": "Spotify",
+      "patterns": ["SPOTIFY"],
+      "tag": "needs-tag",
+      "entity": "viseo",
+      "bas_account": "6990",
+      "konto_name": "Ovriga externa kostnader",
+      "vat_regime": "domestic25",
+      "note": "Business vs personal conflict (dashboard personal 06-24, Cowork reimbursed business 07-06). Held until Oscar and Nicolina rule."
+    },
+    {
+      "name": "SATS",
+      "patterns": ["SATS SPORTSCLUB", "SATS "],
+      "tag": "needs-tag",
+      "entity": "viseo",
+      "bas_account": "7690",
+      "konto_name": "Ovriga personalkostnader",
+      "vat_regime": "domestic6",
+      "note": "Friskvard framework (5 000 kr per year, formansbeskattning risk) pending Nicolina."
+    },
+    {
+      "name": "Kindle",
+      "patterns": ["KINDLE SVCS", "AUDIBLE"],
+      "tag": "needs-tag",
+      "entity": "viseo",
+      "bas_account": "",
+      "konto_name": "",
+      "vat_regime": "",
+      "note": "Business vs personal ruling pending (OBrain open decision)."
+    },
+    {
+      "name": "DJI Sverige",
+      "patterns": ["DJI STORE SVERIGE"],
+      "tag": null,
+      "entity": "viseo",
+      "bas_account": "5410",
+      "konto_name": "Forbrukningsinventarier",
+      "vat_regime": "domestic25",
+      "note": "Kontering only; business status of the DJI purchases pending Oscar (OBrain). Swedish store, domestic VAT."
+    },
+    {
+      "name": "DJI Barendrecht",
+      "patterns": ["DJI BARENDRECHT"],
+      "tag": null,
+      "entity": "viseo",
+      "bas_account": "5410",
+      "konto_name": "Forbrukningsinventarier",
+      "vat_regime": "eu_rc",
+      "note": "EU purchase of goods from NL: same 2614/2645 posting, but declaration boxes differ from services; flag for Nicolina."
+    },
+    {
+      "name": "Kjell & Co",
+      "patterns": ["KJELL & CO", "KJELL&CO"],
+      "tag": null,
+      "entity": "viseo",
+      "bas_account": "5410",
+      "konto_name": "Forbrukningsinventarier",
+      "vat_regime": "domestic25",
+      "note": "Kontering only; business status pending Oscar (OBrain)."
+    },
+    {
+      "name": "Webhallen / IKEA (electronics and inventory)",
+      "patterns": ["WEBHALLEN", "IKEA "],
+      "tag": null,
+      "entity": "viseo",
+      "bas_account": "5410",
+      "konto_name": "Forbrukningsinventarier",
+      "vat_regime": "domestic25",
+      "note": "Kontering only; tag stays with Oscar's pending ruling on these rows."
+    },
+    {
+      "name": "Apple",
+      "patterns": ["APPLE.COM/BILL"],
+      "tag": null,
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "oss_pending",
+      "note": "Kontering only; card default decides the tag. OSS Swedish VAT confirmed on iCloud receipt (IE9700053D); Nicolina policy pending."
+    }
+  ]
+}

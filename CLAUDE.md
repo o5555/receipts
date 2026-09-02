@@ -7,7 +7,7 @@ Read `README.md` first; it carries the current state, lanes, open decisions and 
 - Durable facts, card rules, accountant decisions and timeline: `/Users/odin/obrain/projects/pleo-api.md` (OBrain). Update OBrain when a rule or decision changes; do not keep a second copy here.
 - Runtime mail access: `/Users/odin/thor/projects/email-access/gmail_dwd_read.py` (read-only list and read, needs `--reason`, no attachment download, no send). Prefer it over the claude.ai Gmail connector, which breaks across logins.
 - Pleo: the `pleo` MCP server registered in Claude Code at user scope (`https://mcp.pleo.io/mcp`, OAuth callback port 19876; OAuth completes by pasting the localhost callback URL into `mcp__pleo__complete_authentication`, no tunnel needed). Viseo AB only; 5555 Media AB has no MCP. Reads are always fine. Writes (attach receipt, categorise, queue export) only after showing Oscar the batch and getting a yes. Never payouts.
-- Fortnox: the `fortnox` CLI in Thor (`~/.local/bin/fortnox`), dry-run first, exact approval phrase before `--execute`. Token lacks bookkeeping and inbox scopes today.
+- Fortnox: the `fortnox` CLI in Thor (`~/.local/bin/fortnox`), dry-run first, exact approval phrase before `--execute`. Extended 2026-08-24 with the Amex lane commands (write voucher / inbox-upload / voucher-file-connection / salary-transaction plus vouchers, inbox, salary-transactions and employees reads); they need the pending scope re-consent (`fortnox auth setup --scopes "bookkeeping,inbox,connectfile,archive,salary,article"`) before they can execute. Run fortnox calls sequentially, never parallel (rotating refresh token under a file lock).
 
 ## Commands
 
@@ -25,7 +25,28 @@ scripts/gmail_fetch.py html  <msg_id> out/receipts/x.html --reason "..."   # HTM
 
 # Match a worklist against Gmail (read-only, cached in out/gmail-cache.json; run --dry-run first on a new ledger)
 scripts/gmail_match.py out/pleo-missing-receipts-2026-08-21.csv --entity viseo --short-csv out/gmail-matches-pleo-short.csv --reason "..."
-scripts/gmail_match.py --check out/receipts/MATCHING.csv --reason "..."   # regression: the 9 known receipts must rank first
+scripts/gmail_match.py --check out/receipts/MATCHING.csv --reason "..."   # regression: the known receipts must rank first
+
+# Classify a raw Amex ledger (card rules + scripts/merchant_rules.json; --overrides = Oscar's answers as ref,tag,note)
+scripts/classify.py out/amex-raw-<window>.json --prior out/amex-2026-05-06_2026-08-02.classified.json \
+  --out-json out/amex-<window>.classified2.json --out-csv out/amex-<window>.classified2.csv --needs-tag-csv out/amex-needs-tag.csv
+
+# Build the month-end Fortnox plan (writes dry-run artifacts only, no API calls; execution via the fortnox CLI after Oscar's yes)
+scripts/fortnox_lane.py out/amex-<window>.classified2.csv --month YYYY-MM --out-dir out/fortnox-run-YYYY-MM \
+  --receipts-dir out/receipts-amex --employee-id 02
+
+# Fetch Gmail receipts for classified Amex business rows (read-only, audited; conservative matching)
+scripts/amex_receipts.py out/amex-<window>.classified2.csv --month YYYY-MM --reason "..."
+
+# The whole month in one command (classify + receipts + plan; prints the fortnox_execute step at the end)
+scripts/month_end.py --month YYYY-MM --reason "..."
+
+# Execute an approved plan: dry-run prints the batch and its approval code; Oscar hands the code back
+scripts/fortnox_execute.py out/fortnox-run-YYYY-MM
+scripts/fortnox_execute.py out/fortnox-run-YYYY-MM --execute --approve <kod>   # only after Oscar's code
+
+# Offline test suite (compile + 183 checks + classify regression)
+scripts/run_checks.sh
 ```
 
 Stdlib-only Python 3, no build, no dependency manager. Classification is deliberately not in `amex_import.py`; it is a separate step that carries Oscar's tags.
