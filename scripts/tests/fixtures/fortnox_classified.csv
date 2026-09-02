@@ -1,0 +1,24 @@
+date,card,account,amount,merchant,tag,why,in_pleo,confirm,dash_id,pack_status,ext,ref,period,entity,bas_account,vat_regime,konto_name
+2026-08-03,1022,-61022,129.00,TESTBUTIK ELEKTRONIK AB,business,fixture,,,,,,ATFIX001,P2,viseo,5410,domestic25,Forbrukningsinventarier
+2026-08-05,1022,-61022,249.00,FIKA KAFE AB,business,fixture,,,,,,ATFIX002,P2,viseo,6072,domestic12,Representation
+2026-08-07,1022,-61022,59.00,TAGBILJETT AB,business,fixture,,,,,,ATFIX003,P2,viseo,5810,domestic6,Biljetter
+2026-08-09,1022,-61022,480.00,BILPOOL HALVMOMS AB,business,fixture,,,,,,ATFIX004,P2,viseo,5615,domestic25_half,Leasing personbil
+2026-08-11,1022,-61022,49.11,EU MOLNTJANST LTD,business,fixture,,,,,,ATFIX005,P2,viseo,6540,eu_rc,IT-tjanster
+2026-08-13,1022,-61022,981.09,US MOLNTJANST INC,business,fixture,,,,,,ATFIX006,P2,viseo,6540,noneu_rc,IT-tjanster
+2026-08-15,1022,-61022,100.00,OSS STREAMTJANST LTD,business,fixture,,,,,,ATFIX007,P2,viseo,6540,oss_pending,
+2026-08-17,1022,-61022,111.25,AVGIFTSTJANST AB,business,fixture,,,,,,ATFIX008,P2,viseo,6990,none,
+2026-08-19,1022,-61022,200.00,TOMREGIM TRANING AB,business,fixture,,,,,,ATFIX009,P2,viseo,6993,,
+2026-08-19,1022,-61022,123.45,BILPOOL HALVMOMS 2 AB,business,fixture,,,,,,ATFIX010,P2,viseo,5615,domestic25_half,
+2026-08-21,1022,-61022,1999.99,MOLNPRENUMERATION AB,business,fixture,,,,,,ATFIX011,P2,viseo,6540,domestic25,
+2026-08-22,1022,-61022,62.50,EXTREMELY LONG MERCHANT NAME AKTIEBOLAG FOR TESTING DESCRIPTION TRUNCATION IN FORTNOX VOUCHERS WITH MANY MANY WORDS INDEED,business,fixture,,,,,,ATFIX012,P2,viseo,5410,domestic25,
+2026-08-20,1022,-61022,250.00,FEMFEM WEBBHOTELL AB,business,fixture,,,,,,ATFIX013,P2,5555media,6540,domestic25,IT-tjanster
+2026-08-21,1022,-61022,109.00,OKLAR HANDLARE AB,needs-tag,fixture,,,,,,ATFIX014,P2,viseo,6990,domestic25,
+2026-08-22,1022,-61022,333.00,MYSTERY VENDOR AB,business,fixture,,,,,,ATFIX015,P2,viseo,,domestic25,
+2026-08-23,1022,-61022,50.00,OKAND ENTITET AB,business,fixture,,,,,,ATFIX016,P2,unknown,4010,domestic25,
+2026-08-23,1022,-61022,75.00,BADREGIME AB,business,fixture,,,,,,ATFIX021,P2,viseo,6540,domestic20,
+2026-08-10,1022,-61022,500.00,PRIVAT INKOP AB,personal,fixture,,,,,,ATFIX017,P2,viseo,6540,domestic25,
+2026-08-12,1022,-61022,-129.00,RETUR TESTBUTIK AB,business,fixture,,,,,,ATFIX018,P2,viseo,6540,domestic25,
+2026-07-30,1022,-61022,100.00,JULI-RAD AB,business,fixture,,,,,,ATFIX019,P2,viseo,6540,domestic25,
+2026-08-01,1022,-61022,10.00,SKIPPAD RAD AB,skip,fixture,,,,,,ATFIX020,P2,viseo,6540,domestic25,
+2026-09-05,1022,-61022,250.00,FEMFEM WEBBHOTELL AB,business,fixture,,,,,,ATFIX022,P2,5555media,6540,domestic25,
+2026-09-05,1022,-61022,109.00,OKLAR HANDLARE AB,needs-tag,fixture,,,,,,ATFIX023,P2,viseo,6990,domestic25,
