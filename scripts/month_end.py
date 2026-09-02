@@ -2,7 +2,8 @@
 """One-command month-end run for the Amex-to-Fortnox lane.
 
 Chains the pipeline: classify (card rules + merchant rules + Oscar's overrides)
--> amex_receipts (Gmail evidence fetch, read-only, audited) -> fortnox_lane
+-> amex_receipts (Gmail evidence fetch, read-only, audited) -> archive.py ingest
+amex (the fetched receipts land in the kvittoarkiv, archive/) -> fortnox_lane
 (dry-run plan with vouchers, salary utlagg, manifest, plan.md). It never executes
 anything against Fortnox: the last step prints the fortnox_execute.py dry-run
 command, whose output ends with the approval code Oscar hands back to authorise
@@ -45,11 +46,15 @@ def prev_month(today=None):
     return last_prev.strftime("%Y-%m")
 
 
-def run(cmd, what):
+def run(cmd, what, soft=False):
     print(f"\n== {what} ==")
     print("$ " + " ".join(cmd))
     proc = subprocess.run(cmd)
     if proc.returncode != 0:
+        if soft:
+            print(f"warning: {what} failed (exit {proc.returncode}); the month-end continues, rerun the step by hand",
+                  file=sys.stderr)
+            return
         die(f"{what} failed (exit {proc.returncode}); fix and rerun, steps are idempotent")
 
 
@@ -96,6 +101,13 @@ def main():
              "--min-confidence", a.min_confidence, "--reason", a.reason],
             "steg 2: kvitton fran Gmail")
 
+    archive_cmd = [os.path.join(HERE, "archive.py"), "ingest", "amex", "--ledger", classified_csv,
+                   "--receipts-dir", receipts_dir]
+    matches_json = os.path.join(receipts_dir, f"matches-{month}.json")
+    if os.path.exists(matches_json):
+        archive_cmd += ["--matches", matches_json]
+    run(archive_cmd, "steg 2b: kvittoarkiv (archive/)", soft=True)
+
     lane_cmd = [os.path.join(HERE, "fortnox_lane.py"), classified_csv, "--month", month,
                 "--out-dir", plan_dir, "--receipts-dir", receipts_dir,
                 "--employee-id", a.employee_id]
@@ -107,6 +119,8 @@ def main():
     print(f"  scripts/fortnox_execute.py {os.path.relpath(plan_dir, REPO)}")
     print("Dry-runnen skriver godkannandekoden; Oscar godkanner batchen genom att ge koden till")
     print(f"  scripts/fortnox_execute.py {os.path.relpath(plan_dir, REPO)} --execute --approve <kod>")
+    print("Efter exekveringen, skriv verifikatnumren till kvittoarkivet:")
+    print(f"  scripts/archive.py sync-fortnox {os.path.relpath(plan_dir, REPO)}")
 
 
 if __name__ == "__main__":

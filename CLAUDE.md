@@ -45,7 +45,15 @@ scripts/month_end.py --month YYYY-MM --reason "..."
 scripts/fortnox_execute.py out/fortnox-run-YYYY-MM
 scripts/fortnox_execute.py out/fortnox-run-YYYY-MM --execute --approve <kod>   # only after Oscar's code
 
-# Offline test suite (compile + 183 checks + classify regression)
+# Kvittoarkiv (archive/, gitignored): one markdown page per receipt with frontmatter, Kvittotext, original file and preview
+scripts/archive.py ingest pleo-export data/pleo/expenses_<date> --entity viseo        # after every new Pleo download
+scripts/archive.py add <pdf> [<html>] --entity viseo --date YYYY-MM-DD --merchant "..." --amount-sek 129,00 \
+  --card pleo --lane pleo --pleo-expense-id <id> --pleo-status "attached YYYY-MM-DD" --source-kind gmail --source-ref <msg_id>
+scripts/archive.py sync-fortnox out/fortnox-run-YYYY-MM       # after fortnox_execute: verifikat numbers onto the pages
+scripts/archive.py find --vendor wincher --month 2026-07      # search frontmatter; --json for agents
+scripts/archive.py check                                       # lint plus plausibility warnings; --dry-run on any command writes nothing
+
+# Offline test suite (compile + 546 checks + classify regression)
 scripts/run_checks.sh
 ```
 
@@ -55,6 +63,7 @@ Stdlib-only Python 3, no build, no dependency manager. Classification is deliber
 
 - `data/` raw inputs, gitignored. `data/amex/activity*.csv` (Amex SE portal, MM/DD/YYYY dates, sv-SE amounts with Unicode minus on credits). `data/pleo/expenses_<date>/` (Pleo Export page, Download; DD-MM-YYYY dates; receipt files named by Pleo receipt number, suffix a/b for multiple files).
 - `out/` generated ledgers and queues, gitignored.
+- `archive/` the kvittoarkiv, gitignored: `<entity>/<YYYY>/<stem>.md` plus the copied receipt files and previews, `index.md` per month. Never edit pages by hand except through `scripts/archive.py set`.
 - `docs/` the published status pages: `kvittolaget.html` (overall review), `amex-kon.html`, `pleo-kon.html`. Reports, not an app.
 - `reference/` the July 2026 attempt (lane proposal, closeout pack, abandoned Vercel dashboard) and research journals with Gmail message ids.
 
@@ -65,7 +74,8 @@ Stdlib-only Python 3, no build, no dependency manager. Classification is deliber
 - Match receipts by account, amount and date. Never by the last four digits on a receipt; vendors show card tokens.
 - Pleo auto-matches forwarded receipts only for charges under 40 days old; older ones must be attached on the expense.
 - 5555 Media receipts must be forwarded from `oscar@5555.media`, not from viseo.se.
-- Kivra fees (123,75 SEK) do appear as Pleo rows without receipts and the accountant has listed them as missing; the old "never chase Kivra" rule is unconfirmed until Trimero answers.
+- Kivra fees (123,75 SEK) appear as Pleo rows without receipts and Nicolina wants a receipt for each of them; Kivra receipts exist only behind BankID in the Kivra app, so Oscar downloads them himself.
 - Pleo card exports contain card purchases and payout rows only; out-of-pocket expenses appear solely as references in `Reconciled Entries`.
 - Nothing here sends email, forwards to Fetch, submits Pleo expenses, or writes to Fortnox without explicit approval of the specific batch.
-- Keep raw exports, receipts and PDFs out of git. Plain text, no em dashes, amounts in Swedish format (1 234,56 SEK) in anything Oscar or Trimero reads.
+- Every receipt that is fetched or attached also lands in the kvittoarkiv (`scripts/archive.py add` or an ingest); `month_end.py` runs the Amex ingest itself. `scripts/archive.py check` warnings about wrong-period receipts or another company as buyer are worklist items for Oscar, not things to fix in the archive.
+- Keep raw exports, receipts, PDFs and `archive/` out of git; the GitHub remote is public. Plain text, no em dashes, amounts in Swedish format (1 234,56 SEK) in anything Oscar or Trimero reads.

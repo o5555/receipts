@@ -11,3 +11,5 @@ reference/expense-closeout-pack-2026-07-06/*.csv
 .DS_Store
 __pycache__/
 .env
+archive/
+scripts/bin/
