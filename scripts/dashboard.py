@@ -96,6 +96,7 @@ STAGE_LABELS = OrderedDict([
     ("untagged", "otaggade rader kvar"),
     ("no-plan", "plan saknas"),
     ("planned", "plan klar, väntar på godkännande"),
+    ("held", "plan på hold, avstämning pågår"),
     ("partial", "delvis bokförd"),
     ("booked", "bokförd"),
     ("nothing-to-book", "inget att bokföra"),
@@ -516,7 +517,8 @@ def load_missing_live(root, export, attached_by_expense=None):
     key "mcp" so the list groups them once. A row whose expense id has an archive page with
     pleo_status "attached ..." (attached_by_expense: expense id -> that status) keeps its place
     in rows under the route "attached" but is no work: it stays out of by_route."""
-    path = newest(Path(root).glob("out/pleo-missing-receipts-*.csv"))
+    path = newest(list(Path(root).glob("out/pleo-missing-receipts-*.csv"))
+                  + list(Path(root).glob("out/pleo-card-missing-live-*.csv")))
     out = {"file": None, "date": None, "rows": [], "by_route": []}
     if path is None:
         return out
@@ -601,11 +603,14 @@ def parse_worklist(text):
     return baseline, groups
 
 
-def load_worklist(root, exports, newest_export, warn_receipts):
+def load_worklist(root, exports, newest_export, warn_receipts, attached=None):
     """The newest out/pleo-kvittofel-*.txt as the flagged section: groups with items whose status
     compares the baseline export named in the file with the newest export: a different file
     in the newer export is a refile, a row without any file (detached, nothing attached yet)
-    stays open, a receipt number missing from the newer export is gone."""
+    stays open, a receipt number missing from the newer export is gone. An item whose expense
+    id is in attached (load_pleo_attached: receipts put on expenses after the export) is refiled
+    as well, until the next export shows the new file."""
+    attached = attached or {}
     path = newest(Path(root).glob("out/pleo-kvittofel-*.txt"))
     out = {"file": None, "date": None, "baseline_export": None, "compared_export": None, "groups": []}
     if path is None:
@@ -639,7 +644,9 @@ def load_worklist(root, exports, newest_export, warn_receipts):
         g = {"key": key, "label": label, "count": 0, "open": 0, "refiled": 0, "gone": 0, "items": []}
         for receipt_no, d, problem in items:
             exp = lookup_new.get(receipt_no) or lookup_base.get(receipt_no) or {}
-            if compared is None:
+            if exp.get("expense_id") and exp["expense_id"] in attached:
+                status = "refiled"
+            elif compared is None:
                 status = "open"
             elif receipt_no not in compared["by_receipt"]:
                 status = "gone"
@@ -681,8 +688,45 @@ def load_ledger(root):
                      "account": r.get("account") or "", "amount_sek": r2(abs(parse_amount(r.get("amount")) or 0)),
                      "merchant": norm_ws(r.get("merchant")), "tag": (r.get("tag") or "").strip().lower(),
                      "entity": (r.get("entity") or ENTITY).strip().lower() or ENTITY,
-                     "bas_account": r.get("bas_account") or "", "vat_regime": r.get("vat_regime") or ""})
+                     "bas_account": r.get("bas_account") or "", "vat_regime": r.get("vat_regime") or "",
+                     "in_pleo": (r.get("in_pleo") or "").strip().lower() == "yes",
+                     "pack_status": (r.get("pack_status") or "").strip()})
     return {"file": path, "rel": rel(path, root), "date": mtime_date(path), "rows": rows}
+
+
+def load_paid_via_pleo(root):
+    """{ref: {date, status, payout_id}} from the newest out/closeout-*/amex-already-paid-pleo.csv:
+    Amex rows whose reimbursement already went out through a Pleo payout, so the Fortnox lane
+    must never pay them again. Empty without the file."""
+    path = newest(Path(root).glob("out/closeout-*/amex-already-paid-pleo.csv"))
+    if path is None:
+        return {}
+    out = {}
+    for r in read_csv(path):
+        ref = (r.get("ref") or "").strip()
+        if not ref:
+            continue
+        status = norm_ws(r.get("reimbursement_status"))
+        m = re.search(r"(\d{4}-\d{2}-\d{2})", status)
+        out[ref] = {"date": m.group(1) if m else None, "status": status, "payout_id": (r.get("payout_id") or "").strip()}
+    return out
+
+
+def load_pleo_attached(root):
+    """{expense_id: {date, receipt_no, status, note}} over out/pleo-attached-*.json: receipts attached
+    in Pleo since the newest export, so the export's picture is corrected until the next download."""
+    out = {}
+    for p in sorted(Path(root).glob("out/pleo-attached-*.json")):
+        data = read_json(p) or {}
+        if not isinstance(data, dict):
+            continue
+        for e in data.get("expenses") or []:
+            if not isinstance(e, dict) or not e.get("expense_id"):
+                continue
+            out[str(e["expense_id"])] = {"date": iso(data.get("date")) or mtime_date(p),
+                                         "receipt_no": str(e.get("receipt") or ""),
+                                         "status": norm_ws(e.get("status")), "note": norm_ws(e.get("note"))}
+    return out
 
 
 def load_overrides(root):
@@ -740,6 +784,15 @@ def load_plans(root):
         if not m or not d.is_dir():
             continue
         manifest = read_csv(d / "manifest.csv") if (d / "manifest.csv").is_file() else []
+        held = None
+        if not manifest:
+            held_files = sorted(d.glob("manifest.held-*.csv"))
+            if held_files:
+                manifest = read_csv(held_files[-1])
+                m2 = re.search(r"manifest\.held-(\d{4}-\d{2}-\d{2})", held_files[-1].name)
+                held = m2.group(1) if m2 else mtime_date(held_files[-1])
+        if held is None and (d / "HOLD.md").is_file():
+            held = mtime_date(d / "HOLD.md")
         plan_md = d / "plan.md"
         if not manifest and not plan_md.is_file():
             continue
@@ -776,7 +829,7 @@ def load_plans(root):
             "dir": rel(d, root), "built": mtime_date(plan_md if plan_md.is_file() else d / "manifest.csv"),
             "vouchers": len(manifest), "receipts": sum(1 for r in manifest if r.get("receipt_file")),
             "uploaded": len(uploads), "booked": len(vouchers), "total_sek": r2(sum(abs(parse_amount(r.get("amount")) or 0) for r in manifest)),
-            "warnings": warnings,
+            "warnings": warnings, "held": held,
             "_refs": {r.get("ref") for r in manifest if r.get("ref")}, "_vouchers": vouchers,
             "_uploaded": {u.get("ref") for u in uploads}, "_excluded": excluded,
         }
@@ -796,6 +849,8 @@ def stage_for(month, covered, ledger_covered, needs_tag_open, business, plan):
         return "untagged"
     if plan is None:
         return "no-plan" if business > 0 else "nothing-to-book"
+    if plan.get("held") and plan["booked"] < plan["vouchers"]:
+        return "held"
     if plan["booked"] <= 0:
         return "planned"
     if plan["booked"] < plan["vouchers"]:
@@ -897,6 +952,165 @@ def build_amex(root, ledger, needs_tag_file, needs_tag_rows, overrides, csv_cov,
                "needs_tag_open_sek": r2(sum(r["amount_sek"] for r in needs_tag_rows if not r["answered"])) if needs_tag_rows
                else r2(sum(r["amount_sek"] for r in rows if r["tag"] == "needs-tag" and r["ref"] not in overrides))}
     return section, private
+
+
+# ----------------------------------------------------------------------------- per-row status
+
+AMEX_STATE_LABELS = OrderedDict([
+    ("booked", "bokförd i Fortnox"),
+    ("reimbursed", "ersatt via Pleo"),
+    ("in-pleo", "ligger i Pleo"),
+    ("planned", "kvitto finns, i plan"),
+    ("held", "kvitto finns, plan på hold"),
+    ("ready", "kvitto finns, plan saknas"),
+    ("no-receipt", "kvitto saknas"),
+    ("other-entity", "annat bolag"),
+    ("needs-tag", "väntar på tagg"),
+    ("personal", "privat"),
+    ("skip", "ingen åtgärd"),
+])
+
+PLEO_STATE_LABELS = OrderedDict([
+    ("exported", "kvitto finns, exporterad"),
+    ("ok", "kvitto finns"),
+    ("corrected", "rättat kvitto bifogat"),
+    ("attached", "bifogat efter exporten"),
+    ("flagged", "fel kvitto bifogat"),
+    ("missing", "kvitto saknas"),
+    ("payout", "utbetalning"),
+])
+
+EXPORT_STATUS_LABELS = {"EXPORTED": "exporterad", "QUEUED": "i exportkö", "NOT_EXPORTED": "ej exporterad",
+                        "NOT_VERIFIED": "ej verifierad"}
+
+
+def export_status_label(status):
+    st = (status or "").strip().upper()
+    return EXPORT_STATUS_LABELS.get(st, st.lower().replace("_", " ") or "okänd")
+
+
+def build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_by_ref, paid):
+    """Every ledger row with what has happened to it: receipt (a file or archive page exists),
+    reimbursed (a Pleo payout covered it, or a Fortnox voucher exists), booked (voucher), and
+    one state key from AMEX_STATE_LABELS with a Swedish next step. Newest first."""
+    rows = []
+    for r in (ledger["rows"] if ledger else []):
+        plan = plans.get(r["month"])
+        rec = arc_by_ref.get(r["ref"])
+        rfile = receipt_map.get(r["ref"])
+        receipt = rfile is not None or rec is not None
+        voucher = (plan or {}).get("_vouchers", {}).get(r["ref"]) or (rec.get("fortnox_voucher") if rec else None) or None
+        pay = paid.get(r["ref"])
+        tag = r["tag"]
+        if tag == "needs-tag" and r["ref"] in overrides:
+            tag = "business"
+        in_plan = bool(plan and r["ref"] in plan["_refs"])
+        if voucher:
+            state, step = "booked", f"verifikat {voucher}"
+        elif pay:
+            state = "reimbursed"
+            step = f"utbetald via Pleo {pay['date'] or ''}".strip() + ", får inte ersättas igen"
+            if not receipt:
+                step += "; kvitto saknas fortfarande"
+        elif tag == "personal":
+            state, step = "personal", "privat köp, inget att göra"
+        elif tag == "skip":
+            state, step = "skip", "betalning eller kredit, inget att göra"
+        elif tag == "needs-tag":
+            state, step = "needs-tag", "Oscar taggar företag eller privat"
+        elif r["in_pleo"]:
+            state, step = "in-pleo", "utgiften finns i Pleo, hanteras i Pleo-lanen"
+        elif r["entity"] != ENTITY:
+            state = "other-entity"
+            step = f"{archive.ENTITY_NAMES.get(r['entity'], r['entity'])}, hanteras utanför Viseo-planen"
+        elif not receipt:
+            state, step = "no-receipt", "hämta kvitto (Gmail eller leverantörsportal)"
+        elif plan and plan.get("held"):
+            state, step = "held", f"planen är på hold sedan {plan['held']}, väntar på avstämning"
+        elif in_plan:
+            state, step = "planned", "i plan, väntar på ditt godkännande"
+        else:
+            state, step = "ready", "byggs in i nästa plan (month_end.py)"
+        if state in ("planned", "held", "ready", "no-receipt") and not r["bas_account"]:
+            step += "; konto saknas"
+        rows.append({
+            "ref": r["ref"], "date": r["date"], "month": r["month"], "merchant": r["merchant"],
+            "vendor": vendor_name(r["merchant"], r["amount_sek"], "SEK"), "amount_sek": r["amount_sek"],
+            "card": card_label(r["card"]), "tag": tag, "entity": r["entity"], "bas_account": r["bas_account"],
+            "receipt": receipt, "receipt_file": rel(rfile, root) if rfile is not None else None,
+            "archive_id": rec.get("id") if rec else None,
+            "reimbursed": bool(voucher or pay), "reimbursed_via": "fortnox" if voucher else ("pleo" if pay else None),
+            "reimbursed_date": pay["date"] if pay else None,
+            "booked": bool(voucher), "voucher": str(voucher) if voucher else None,
+            "in_pleo": r["in_pleo"], "state": state, "state_label": AMEX_STATE_LABELS[state], "step": step,
+        })
+    rows.sort(key=lambda x: (x["date"], x["ref"]), reverse=True)
+    return rows
+
+
+def build_pleo_rows(export, missing_live, flagged, attached, attached_by_expense):
+    """Every row of the newest Pleo export plus live gap rows newer than it, each with one
+    state key from PLEO_STATE_LABELS, the export status in Swedish and a next step. Newest
+    first. attached: load_pleo_attached's map (receipts put on expenses after the export);
+    attached_by_expense: the archive's pleo_status per expense id."""
+    problems = {}
+    for g in (flagged or {}).get("groups") or []:
+        for it in g.get("items") or []:
+            if it.get("status") == "open":
+                problems[it["receipt_no"]] = (g["label"], it.get("problem") or "")
+    live = {r["expense_id"]: r for r in (missing_live or {}).get("rows") or [] if r.get("expense_id")}
+    rows = []
+    seen = set()
+    for r in (export or {}).get("rows") or []:
+        eid = r["expense_id"]
+        seen.add(eid)
+        fix = attached.get(eid)
+        prob = problems.get(r["receipt_no"])
+        lv = live.get(eid)
+        est = export_status_label(r["export_status"])
+        if r.get("payout"):
+            state, step = "payout", "utbetalning, inget kvitto behövs"
+        elif fix:
+            state, step = "corrected", f"rättat kvitto bifogat {fix['date']}, gammal fil ligger kvar"
+        elif prob:
+            state, step = "flagged", f"{prob[0]}: {prob[1]}".rstrip(": ")
+        elif r["has_receipt"]:
+            state = "exported" if r["export_status"].upper() == "EXPORTED" else "ok"
+            step = "klar" if state == "exported" else "kvitto finns, väntar på export till Fortnox"
+        elif attached_by_expense.get(eid):
+            state, step = "attached", f"{attached_by_expense[eid]} enligt arkivet, syns i nästa export"
+        else:
+            state = "missing"
+            if lv:
+                step = lv["hint"]
+            elif (missing_live or {}).get("file"):
+                step = f"utan kvitto i exporten men inte på live-listan {missing_live['date']}, kontrollera i Pleo"
+            else:
+                step = "hämta kvitto"
+        rows.append({
+            "date": r["date"], "receipt_no": r["receipt_no"], "expense_id": eid, "merchant": r["merchant"],
+            "vendor": vendor_name(r["merchant"], r["foreign"]["amount"] if r.get("foreign") else r["amount_sek"],
+                                  r["foreign"]["currency"] if r.get("foreign") else "SEK"),
+            "amount_sek": r["amount_sek"], "type": r["type"], "payout": bool(r.get("payout")),
+            "has_receipt": bool(r["has_receipt"]) or bool(fix), "export_status": r["export_status"],
+            "export_status_label": est, "route": lv["route"] if lv else None,
+            "route_label": lv["route_label"] if lv else None, "state": state,
+            "state_label": PLEO_STATE_LABELS[state], "step": step, "source": "export",
+        })
+    for eid, lv in live.items():
+        if eid in seen:
+            continue
+        state = "attached" if lv["route"] == "attached" else "missing"
+        rows.append({
+            "date": lv["date"], "receipt_no": lv["receipt_no"], "expense_id": eid, "merchant": lv["merchant"],
+            "vendor": lv["vendor"], "amount_sek": lv["amount_sek"], "type": lv["type"], "payout": False,
+            "has_receipt": False, "export_status": lv["export_status"],
+            "export_status_label": export_status_label(lv["export_status"]), "route": lv["route"],
+            "route_label": lv["route_label"], "state": state, "state_label": PLEO_STATE_LABELS[state],
+            "step": lv["hint"], "source": "live",
+        })
+    rows.sort(key=lambda x: (x["date"] or "", x["receipt_no"]), reverse=True)
+    return rows
 
 
 # ----------------------------------------------------------------------------- archive
@@ -1196,6 +1410,12 @@ def build_todo(today, sources, pleo, amex_sec, amex_priv, plans, arc_sec, arc_pr
                               n, amex_priv["needs_tag_open_sek"], None, "amex-otaggat"))
     for m in sorted(plans, reverse=True):
         p = plans[m]
+        if p.get("held") and p["booked"] < p["vouchers"]:
+            todo.append(todo_item(f"fortnox-held:{m}", "warn", "systemet", f"Fortnox-planen för {sv_month(m)} är på hold",
+                                  f"Manifestet lades på hold {p['held']}: rader i planen är redan ersatta via Pleo-utbetalningar. "
+                                  "Stäm av mot Pleo-historiken och bygg om planen utan dem innan något bokförs.",
+                                  p["vouchers"], p["total_sek"], None, "amex"))
+            continue
         if p["booked"] < p["vouchers"]:
             found = plural(p["vouchers"], "kvitto funnet", "kvitton funna")
             detail = f"{p['vouchers']} verifikat, {sv_amount(p['total_sek'])}, {p['receipts']} av {p['vouchers']} {found}."
@@ -1276,10 +1496,12 @@ def build_model(root=None, today=None, archive_root=None):
     arc_sec, arc_priv = build_archive(archive_root, root)
     months, totals = pleo_months(export)
     missing_live = load_missing_live(root, export, arc_priv["attached_by_expense"])
-    flagged = load_worklist(root, exports, export, arc_priv["warn_receipts"])
+    attached = load_pleo_attached(root)
+    flagged = load_worklist(root, exports, export, arc_priv["warn_receipts"], attached)
     pleo = {"export_dir": export["rel"] if export else None, "export_date": export["date"] if export else None,
             "months": months, "totals": totals, "missing_live": missing_live, "flagged": flagged,
-            "same_file_groups_now": export["same_file_groups"] if export else []}
+            "same_file_groups_now": export["same_file_groups"] if export else [],
+            "rows": build_pleo_rows(export, missing_live, flagged, attached, arc_priv["attached_by_expense"])}
 
     ledger = load_ledger(root)
     overrides = load_overrides(root)
@@ -1288,6 +1510,7 @@ def build_model(root=None, today=None, archive_root=None):
     receipt_map = load_receipt_maps(root)
     amex_sec, amex_priv = build_amex(root, ledger, needs_tag_file, needs_tag_rows, overrides, amex_csv_coverage(root),
                                      plans, receipt_map, arc_priv["by_ref"])
+    amex_sec["rows"] = build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_priv["by_ref"], load_paid_via_pleo(root))
     public_plans = {m: {k: v for k, v in p.items() if not k.startswith("_")} for m, p in plans.items()}
 
     sources = build_sources(today, export, pleo, flagged, amex_priv, amex_sec, ledger, public_plans, arc_sec, arc_priv)

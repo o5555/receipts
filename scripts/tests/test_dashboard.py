@@ -70,7 +70,10 @@ SUMMARY_KEYS = ["pleo_rows", "pleo_with_receipt", "pleo_missing_export", "pleo_m
                 "amex_vouchers_planned", "amex_vouchers_booked", "archive_pages", "archive_sek",
                 "archive_errors", "archive_warnings", "next_amex_month", "next_amex_csv_present"]
 TODO_KEYS = ["key", "severity", "owner", "title", "detail", "count", "amount_sek", "command", "link"]
-PLEO_KEYS = ["export_dir", "export_date", "months", "totals", "missing_live", "flagged", "same_file_groups_now"]
+PLEO_KEYS = ["export_dir", "export_date", "months", "totals", "missing_live", "flagged", "same_file_groups_now", "rows"]
+PLEO_ROW_KEYS = ["date", "receipt_no", "expense_id", "merchant", "vendor", "amount_sek", "type", "payout", "has_receipt",
+                 "export_status", "export_status_label", "route", "route_label", "state", "state_label", "step", "source"]
+PLEO_STATES = ["exported", "ok", "corrected", "attached", "flagged", "missing", "payout"]
 PLEO_MONTH_KEYS = ["month", "rows", "with_receipt", "missing", "amount_sek", "missing_sek", "payouts",
                    "payouts_sek", "exported", "queued", "not_exported"]
 LIVE_ROW_KEYS = ["receipt_no", "expense_id", "date", "merchant", "vendor", "amount_sek", "type",
@@ -80,11 +83,16 @@ FLAG_GROUP_KEYS = ["key", "label", "count", "open", "refiled", "gone", "items"]
 FLAG_ITEM_KEYS = ["receipt_no", "date", "merchant", "vendor", "amount_sek", "export_status", "expense_id",
                   "problem", "status", "status_label", "check_still_warns"]
 AMEX_KEYS = ["ledger_file", "ledger_date", "coverage_end", "months", "needs_tag", "business_rows",
-             "next_month", "next_month_csv_present"]
+             "next_month", "next_month_csv_present", "rows"]
+AMEX_ROW_KEYS = ["ref", "date", "month", "merchant", "vendor", "amount_sek", "card", "tag", "entity", "bas_account",
+                 "receipt", "receipt_file", "archive_id", "reimbursed", "reimbursed_via", "reimbursed_date", "booked",
+                 "voucher", "in_pleo", "state", "state_label", "step"]
+AMEX_STATES = ["booked", "reimbursed", "in-pleo", "planned", "held", "ready", "no-receipt", "other-entity", "needs-tag",
+               "personal", "skip"]
 AMEX_MONTH_KEYS = ["month", "rows", "business", "business_sek", "business_other_entity", "personal",
                    "needs_tag", "needs_tag_open", "skip", "receipts_found", "receipts_missing", "plan",
                    "stage", "stage_label"]
-PLAN_KEYS = ["dir", "built", "vouchers", "receipts", "uploaded", "booked", "total_sek", "warnings"]
+PLAN_KEYS = ["dir", "built", "vouchers", "receipts", "uploaded", "booked", "total_sek", "warnings", "held"]
 NEEDS_TAG_KEYS = ["ref", "date", "merchant", "amount_sek", "card", "why", "answered"]
 BUSINESS_ROW_KEYS = ["ref", "date", "month", "merchant", "vendor", "amount_sek", "card", "entity",
                      "bas_account", "vat_regime", "receipt", "receipt_file", "archive_id", "voucher",
@@ -93,7 +101,8 @@ ARCHIVE_KEYS = ["root", "pages", "total_sek", "updated", "previews", "errors", "
                 "warning_kinds", "warnings", "months", "status", "text_methods"]
 ARCHIVE_MONTH_KEYS = ["month", "pages", "amount_sek", "pleo", "amex", "attached", "in_pleo", "warnings"]
 STAGE_LABELS = {"no-csv": "väntar på Amex-CSV", "untagged": "otaggade rader kvar", "no-plan": "plan saknas",
-                "planned": "plan klar, väntar på godkännande", "partial": "delvis bokförd", "booked": "bokförd",
+                "planned": "plan klar, väntar på godkännande", "held": "plan på hold, avstämning pågår",
+                "partial": "delvis bokförd", "booked": "bokförd",
                 "nothing-to-book": "inget att bokföra"}
 ROUTE_LABELS = {"kivra": "Kivra-appen", "portal": "leverantörsportal", "pocket": "eget utlägg", "gmail": "Gmail"}
 KIVRA_HINT = "Kivra-appen, BankID, Oscar laddar ner"
@@ -719,6 +728,14 @@ def check_shape(m, label):
                                        for r in amex.get("months") or []), [(r.get("stage"), r.get("stage_label")) for r in amex.get("months") or []])
     ok(f"{label} amex needs_tag keys", all(has_keys(r, NEEDS_TAG_KEYS) for r in amex.get("needs_tag") or []))
     ok(f"{label} amex business_rows keys", all(has_keys(r, BUSINESS_ROW_KEYS) for r in amex.get("business_rows") or []))
+    ok(f"{label} amex rows keys", isinstance(amex.get("rows"), list) and all(has_keys(r, AMEX_ROW_KEYS) for r in amex["rows"]))
+    ok(f"{label} amex rows state vocab", all(r.get("state") in AMEX_STATES and isinstance(r.get("state_label"), str)
+                                            and isinstance(r.get("step"), str) and r["step"] for r in amex.get("rows") or []),
+       [(r.get("state"), r.get("step")) for r in amex.get("rows") or []])
+    ok(f"{label} pleo rows keys", isinstance(pleo.get("rows"), list) and all(has_keys(r, PLEO_ROW_KEYS) for r in pleo["rows"]))
+    ok(f"{label} pleo rows state vocab", all(r.get("state") in PLEO_STATES and r.get("source") in ("export", "live")
+                                            and isinstance(r.get("step"), str) and r["step"] for r in pleo.get("rows") or []),
+       [(r.get("state"), r.get("source")) for r in pleo.get("rows") or []])
     ok(f"{label} archive keys", has_keys(m.get("archive"), ARCHIVE_KEYS), sorted(m.get("archive") or {}))
     arc = m.get("archive") or {}
     ok(f"{label} archive months keys", all(has_keys(r, ARCHIVE_MONTH_KEYS) for r in arc.get("months") or []))
@@ -1045,6 +1062,85 @@ def check_todo_order(m, label):
     ok(f"{label} todo count then amount order within severity", good, [(t["key"], t["severity"], t["count"], t["amount_sek"]) for t in todo])
     keys = [t["key"] for t in todo]
     ok(f"{label} todo keys unique", len(keys) == len(set(keys)), keys)
+
+
+def check_rows_main(m, label):
+    """Per-row states on the full root: every ledger row once, tags and receipts decide the state,
+    the answered needs-tag row counts as business, Pleo rows cover the export plus live-only gaps."""
+    rows = {r["ref"]: r for r in m["amex"]["rows"]}
+    ok(f"{label} amex rows cover the ledger", set(rows) == {r[6] for r in LEDGER_ROWS}, sorted(rows))
+    ok(f"{label} amex rows newest first", [r["date"] for r in m["amex"]["rows"]] == sorted((r["date"] for r in m["amex"]["rows"]), reverse=True))
+    st = lambda ref: rows.get(ref, {}).get("state")
+    ok(f"{label} personal row", st("ATFIX401") == "personal" and not rows["ATFIX401"]["receipt"], rows.get("ATFIX401"))
+    ok(f"{label} skip row", st("ATFIX704") == "skip", rows.get("ATFIX704"))
+    ok(f"{label} open needs-tag row", st("ATFIX703") == "needs-tag" and rows["ATFIX703"]["tag"] == "needs-tag", rows.get("ATFIX703"))
+    ok(f"{label} answered needs-tag row is business", rows.get("ATFIX604", {}).get("tag") == "business" and st("ATFIX604") == "no-receipt",
+       rows.get("ATFIX604"))
+    ok(f"{label} other-entity row", st("ATFIX603") == "other-entity", rows.get("ATFIX603"))
+    ok(f"{label} booked row", st("ATFIX501") == "booked" and rows["ATFIX501"]["booked"] and rows["ATFIX501"]["reimbursed"]
+       and rows["ATFIX501"]["reimbursed_via"] == "fortnox" and rows["ATFIX501"]["voucher"] == "A 11", rows.get("ATFIX501"))
+    ok(f"{label} booked july row", st("ATFIX701") == "booked" and rows["ATFIX701"]["receipt"] and rows["ATFIX701"]["voucher"] == "A 12"
+       and rows["ATFIX701"]["archive_id"], rows.get("ATFIX701"))
+    ok(f"{label} no-receipt row", st("ATFIX702") == "no-receipt" and not rows["ATFIX702"]["receipt"], rows.get("ATFIX702"))
+    ok(f"{label} no-receipt row without account says so", st("ATFIX605") == "no-receipt" and "konto saknas" in rows["ATFIX605"]["step"],
+       rows.get("ATFIX605"))
+    ok(f"{label} amex rows text has no dashes", no_dashes(json.dumps(m["amex"]["rows"], ensure_ascii=False)))
+    prow = {r["receipt_no"]: r for r in m["pleo"]["rows"]}
+    exp_numbers = {r["receipt_no"] for r in m["pleo"]["rows"] if r["source"] == "export"}
+    ok(f"{label} pleo export rows count", len(exp_numbers) == m["pleo"]["totals"]["rows"], (len(exp_numbers), m["pleo"]["totals"]["rows"]))
+    ok(f"{label} pleo payout row", prow.get("2600107", {}).get("state") == "payout" and prow["2600107"]["payout"], prow.get("2600107"))
+    ok(f"{label} pleo exported row with receipt", prow.get("2600102", {}).get("export_status_label") == "exporterad", prow.get("2600102"))
+    ok(f"{label} pleo refiled row is ok", prow.get("2600103", {}).get("state") == "ok", prow.get("2600103"))
+    ok(f"{label} pleo flagged row", prow.get("2600105", {}).get("state") == "flagged" and GROUP_LABELS["other-company"] in prow["2600105"]["step"],
+       prow.get("2600105"))
+    ok(f"{label} pleo kivra row missing with route", prow.get("2600106", {}).get("state") == "missing"
+       and prow["2600106"]["route"] == "kivra" and prow["2600106"]["step"] == KIVRA_HINT, prow.get("2600106"))
+    ok(f"{label} pleo rows newest first", [r["date"] for r in m["pleo"]["rows"]] == sorted((r["date"] for r in m["pleo"]["rows"]), reverse=True))
+    ok(f"{label} pleo rows text has no dashes", no_dashes(json.dumps(m["pleo"]["rows"], ensure_ascii=False)))
+
+
+def write_held_inputs(root):
+    """The Codex closeout shape: the July manifest renamed manifest.held-<date>.csv plus HOLD.md,
+    out/closeout-<date>/amex-already-paid-pleo.csv naming ATFIX702, and out/pleo-attached-<date>.json
+    naming the flagged 2600103 expense."""
+    d = os.path.join(root, "out", "fortnox-run-2026-07")
+    os.rename(os.path.join(d, "manifest.csv"), os.path.join(d, "manifest.held-2026-09-07.csv"))
+    write_text(os.path.join(d, "HOLD.md"), "Planen ar pa hold: rader redan ersatta via Pleo.\n")
+    write_csv(os.path.join(root, "out", "closeout-2026-09-07", "amex-already-paid-pleo.csv"),
+              LEDGER_COLUMNS + ["reimbursement_status", "payout_id"],
+              [["2026-07-05", "1022", "-61022", "224.82", "TESTKJELL AB", "business", "fixture", "", "", "", "", "",
+                "ATFIX702", "activity.csv", "viseo", "5410", "domestic25", "IT-tjanster",
+                "already paid via Pleo 2026-07-09; Fortnox posting unverified", "payout-1"]])
+    with open(os.path.join(root, "out", "pleo-attached-2026-09-07.json"), "w", encoding="utf-8") as fh:
+        json.dump({"date": "2026-09-07", "expenses": [{"receipt": "2600103", "expense_id": EXP3,
+                                                       "status": "attached 2026-09-07; verified in Pleo", "note": "fixture"}]}, fh)
+
+
+def check_held(m, label):
+    """Held plan: stage held, todo fortnox-held instead of fortnox-execute, planned rows become held,
+    the paid row is reimbursed via Pleo, the attached flagged item is refiled and out of the reattach count."""
+    july = month(m, "amex", "2026-07")
+    ok(f"{label} july plan held from the renamed manifest", july is not None and july["plan"]["held"] == "2026-09-07"
+       and july["plan"]["vouchers"] == 2 and july["stage"] == "untagged", july and (july["stage"], july["plan"]))
+    stage = call(f"{label} stage_for raises", dashboard.stage_for, "2026-07", "2026-07", "2026-07", 0, 2, july["plan"] if july else None)
+    ok(f"{label} stage held once the tags are answered", stage == "held", stage)
+    held = todo_by_key(m, "fortnox-held:2026-07")
+    ok(f"{label} fortnox-held todo", len(held) == 1 and held[0]["severity"] == "warn" and held[0]["count"] == 2
+       and "2026-09-07" in held[0]["detail"] and held[0]["command"] is None, held)
+    ok(f"{label} no fortnox-execute for july", not todo_by_key(m, "fortnox-execute:2026-07"), todo_by_key(m, "fortnox-execute:2026-07"))
+    rows = {r["ref"]: r for r in m["amex"]["rows"]}
+    ok(f"{label} booked row stays booked under a hold", rows.get("ATFIX701", {}).get("state") == "booked", rows.get("ATFIX701"))
+    r702 = rows.get("ATFIX702", {})
+    ok(f"{label} paid row reimbursed via pleo", r702.get("state") == "reimbursed" and r702.get("reimbursed") and not r702.get("booked")
+       and r702.get("reimbursed_via") == "pleo" and r702.get("reimbursed_date") == "2026-07-09" and "kvitto saknas" in r702.get("step", ""), r702)
+    items = {it["receipt_no"]: it for g in m["pleo"]["flagged"]["groups"] for it in g["items"]}
+    ok(f"{label} attached flagged item refiled", items.get("2600103", {}).get("status") == "refiled", items.get("2600103"))
+    ok(f"{label} flagged summary counts", m["summary"]["flagged_refiled"] >= 1
+       and m["summary"]["flagged_open"] == m["summary"]["flagged_total"] - m["summary"]["flagged_refiled"] - sum(g["gone"] for g in m["pleo"]["flagged"]["groups"]),
+       {k: m["summary"][k] for k in ("flagged_total", "flagged_open", "flagged_refiled")})
+    prow = {r["receipt_no"]: r for r in m["pleo"]["rows"]}
+    ok(f"{label} attached pleo row corrected", prow.get("2600103", {}).get("state") == "corrected" and prow["2600103"]["has_receipt"], prow.get("2600103"))
+    ok(f"{label} sources still ok", m["sources"]["fortnox_runs"]["state"] != "missing", m["sources"]["fortnox_runs"])
 
 
 def check_todo_main(m, label):
@@ -1395,6 +1491,7 @@ def main():
         check_flagged(mf, "full", "data/pleo/expenses_" + NEWER)
         check_missing_a(mf, "full")
         check_amex(mf, "full", open_refs={"ATFIX703"})
+        check_rows_main(mf, "full")
         check_todo_main(mf, "full")
         check_sources_main(mf, "full")
         check_archive(mf, "full")
@@ -1531,6 +1628,14 @@ def main():
         receipt_file(primary, ARCHIVE_PAGES[0][2])
         os.remove(os.path.join(full, "archive", "viseo", "2026", "orphan-file.pdf"))
         os.utime(idx, None)
+
+    # --- held plan, paid-via-Pleo rows and receipts attached after the export ---
+    held_root = make_root(work, "held", with_archive=False)
+    write_held_inputs(held_root)
+    mh = build(held_root, TODAY)
+    if mh is not None:
+        check_shape(mh, "held")
+        check_held(mh, "held")
 
     # --- empty root through the library and the CLI ---
     empty = os.path.join(work, "empty")

@@ -55,8 +55,10 @@ scripts/archive.py check                                       # lint plus plaus
 
 # Kvittotavlan, the progress page Oscar reviews (out/dashboard.html, gitignored): rerun after every ingest, attach, month-end or execute
 scripts/dashboard.py                                           # --json prints the model; --today YYYY-MM-DD fixes the date
+scripts/dashboard_site.py --deploy                             # hosted version at https://kvittotavlan.vercel.app (encrypted; key in data/dashboard.key)
+scripts/dashboard_site.py --print-url                          # the link with the key after #
 
-# Offline test suite (compile + 1 159 checks + classify regression)
+# Offline test suite (compile + 1 254 checks + classify regression)
 scripts/run_checks.sh
 ```
 
@@ -80,6 +82,6 @@ Stdlib-only Python 3, no build, no dependency manager. Classification is deliber
 - Kivra fees (123,75 SEK) appear as Pleo rows without receipts and Nicolina wants a receipt for each of them; Kivra receipts exist only behind BankID in the Kivra app, so Oscar downloads them himself.
 - Pleo card exports contain card purchases and payout rows only; out-of-pocket expenses appear solely as references in `Reconciled Entries`.
 - Nothing here sends email, forwards to Fetch, submits Pleo expenses, or writes to Fortnox without explicit approval of the specific batch.
-- Kvittotavlan (`scripts/dashboard.py`) is rerun after anything that changes `out/`, `data/pleo/` or the archive, so the page Oscar reviews never lags the data. Its numbers are computed, never typed in.
+- Kvittotavlan (`scripts/dashboard.py`, then `scripts/dashboard_site.py --deploy`) is rerun after anything that changes `out/`, `data/pleo/` or the archive, so the page Oscar reviews never lags the data. Its numbers are computed, never typed in. The hosted page carries encrypted data only; never deploy it unencrypted and never commit `data/dashboard.key` or `out/site/`.
 - Every receipt that is fetched or attached also lands in the kvittoarkiv (`scripts/archive.py add` or an ingest); `month_end.py` runs the Amex ingest itself. `scripts/archive.py check` warnings about wrong-period receipts or another company as buyer are worklist items for Oscar, not things to fix in the archive.
 - Keep raw exports, receipts, PDFs and `archive/` out of git; the GitHub remote is public. Plain text, no em dashes, amounts in Swedish format (1 234,56 SEK) in anything Oscar or Trimero reads.
