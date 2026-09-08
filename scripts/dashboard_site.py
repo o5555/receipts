@@ -86,7 +86,8 @@ def page_payload(model):
     return {
         "generated": model["generated"], "today": model["today"], "entity_name": model["entity_name"],
         "sources": model["sources"], "summary": model["summary"], "todo": model["todo"],
-        "amex": {"rows": model["amex"]["rows"], "months": model["amex"]["months"],
+        # private purchases stay out of the page: Oscar does not want them listed
+        "amex": {"rows": [r for r in model["amex"]["rows"] if r["state"] != "personal"], "months": model["amex"]["months"],
                  "coverage_end": model["amex"]["coverage_end"], "next_month": model["amex"]["next_month"],
                  "next_month_csv_present": model["amex"]["next_month_csv_present"]},
         "pleo": {"rows": model["pleo"]["rows"], "months": model["pleo"]["months"], "totals": model["pleo"]["totals"],
@@ -206,7 +207,7 @@ tile(biz.filter(r=>!r.receipt).length,'saknar kvitto',null,'bad'),tile(A.filter(
 const rows=filt(A,af);const order=Object.keys(D.labels.amex);
 const cov=`Amex-exporterna täcker till och med ${D.amex.coverage_end||'okänt datum'}.${D.amex.next_month&&!D.amex.next_month_csv_present?' CSV för '+svMonth(D.amex.next_month)+' saknas.':''}`;
 return `<div class="tiles">${t}</div><p class="sub" style="color:var(--ink2);margin:0 0 8px">${esc(cov)}</p>${months(D.amex.months,'amex')}
-<h2>Alla Amex-köp</h2>${chips(A,'amex',af,order)}${tools(A,af,rows.length)}<div class="card tbl"><table><thead><tr><th>Datum</th><th>Handlare</th><th style="text-align:right">Belopp</th><th>Kort</th><th>Tagg</th><th>Kvitto</th><th>Ersatt</th><th>Bokförd</th><th>Status och nästa steg</th></tr></thead><tbody>
+<h2>Amex-köp (privata köp visas inte)</h2>${chips(A,'amex',af,order)}${tools(A,af,rows.length)}<div class="card tbl"><table><thead><tr><th>Datum</th><th>Handlare</th><th style="text-align:right">Belopp</th><th>Kort</th><th>Tagg</th><th>Kvitto</th><th>Ersatt</th><th>Bokförd</th><th>Status och nästa steg</th></tr></thead><tbody>
 ${rows.length?rows.map(r=>{const na=['personal','skip','needs-tag'].includes(r.state);return `<tr><td>${esc(r.date)}</td><td>${esc(r.vendor)}<span class="m">${esc(r.merchant)}</span></td><td class="num">${sek(r.amount_sek)}</td><td>${esc(r.card)}</td><td>${esc({business:'företag',personal:'privat',skip:'ingen','needs-tag':'?'}[r.tag]||r.tag)}${r.entity!=='viseo'?'<span class="m">'+esc(r.entity)+'</span>':''}</td><td class="c">${yn(r.receipt,na)}</td><td class="c">${yn(r.reimbursed,na)}${r.reimbursed_via==='pleo'?'<span class="m">Pleo '+esc(r.reimbursed_date||'')+'</span>':''}</td><td class="c">${yn(r.booked,na)}${r.voucher?'<span class="m">'+esc(r.voucher)+'</span>':''}</td><td>${badge('amex',r.state)}<span class="step">${esc(r.step)}</span></td></tr>`}).join(''):'<tr><td colspan="9" class="empty">Inga rader matchar.</td></tr>'}</tbody></table></div>`}
 
 function pleoView(){const P=D.pleo.rows,card=P.filter(r=>!r.payout);
