@@ -7,19 +7,25 @@ decrypts it with WebCrypto from the key in the URL fragment (#<key>) or a typed 
 the public Vercel URL exposes no figures, merchants or receipt numbers. The key lives in
 <root>/data/dashboard.key (data/ is gitignored) and is created on the first build.
 
+The same key opens /plan, Kvittoplanen: docs/kvittoplanen.md rendered from its markdown
+subset (headings, paragraphs, - and 1. lists, > callouts, **bold**, `code`, links) behind a
+status strip computed from the model, so the plan page never types a number by hand.
+
 Usage:
-  scripts/dashboard_site.py                 # writes out/site/index.html and vercel.json
+  scripts/dashboard_site.py                 # writes out/site/index.html, plan.html and vercel.json
   scripts/dashboard_site.py --deploy        # then `vercel deploy --prod` from out/site
   scripts/dashboard_site.py --print-url     # prints the last deployment URL with the key fragment
 
-Reads only through dashboard.build_model; writes out/site/ and data/dashboard.key.
+Reads only through dashboard.build_model and docs/kvittoplanen.md; writes out/site/ and data/dashboard.key.
 """
 from __future__ import annotations
 
 import argparse
 import base64
+import html as html_mod
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -32,10 +38,12 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from dashboard import AMEX_STATE_LABELS, PLEO_STATE_LABELS, STAGE_LABELS, build_model, to_date  # noqa: E402
+from dashboard_html import month_name, plural, sv_amount, sv_int  # noqa: E402
 
 PBKDF2_ITER = 200000
 PROJECT = "kvittotavlan"
 PROD_URL = f"https://{PROJECT}.vercel.app"
+PLAN_SOURCE_REL = Path("docs") / "kvittoplanen.md"
 
 # state -> tone (status palette: good, warn, bad, info, muted); every badge also carries its label
 AMEX_TONES = {"booked": "good", "reimbursed": "info", "in-pleo": "muted", "planned": "warn", "held": "warn",
@@ -111,6 +119,12 @@ a{color:var(--accent)}.wrap{max-width:1180px;margin:0 auto;padding:20px 18px 60p
 header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;margin-bottom:14px}header h1{font-size:24px;margin:0}header .sub{color:var(--ink2)}
 nav{display:flex;gap:6px;margin:12px 0 18px;border-bottom:1px solid var(--line)}nav button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;font:inherit;font-weight:600;color:var(--ink2);cursor:pointer}
 nav button.on{color:var(--ink);border-bottom-color:var(--accent)}
+nav a.navlink{display:inline-block;padding:10px 14px;font-weight:600;color:var(--ink2);text-decoration:none;border-bottom:3px solid transparent}nav a.navlink.on{color:var(--ink);border-bottom-color:var(--accent)}nav a.navlink:hover{color:var(--ink)}nav a.navlink.right{margin-left:auto}
+.plan{max-width:720px}.plan h2{font-size:18px;margin:26px 0 8px}.plan p,.plan li{line-height:1.55}.plan ul,.plan ol{padding-left:22px;margin:8px 0}.plan li{margin:7px 0}.plan li strong{color:var(--ink)}
+.plan blockquote{margin:16px 0;padding:12px 16px;border-left:4px solid var(--bad);background:var(--bad-bg);border-radius:0 8px 8px 0}.plan blockquote p{margin:0}
+.plan code{background:var(--mutedbg);padding:1px 5px;border-radius:4px;font-size:.9em}
+.status{margin:4px 0 14px}.status span.ok{background:var(--good-bg);color:var(--good)}.status span.warn,.status span.stale{background:var(--warn-bg);color:var(--warn)}.status span.missing{background:var(--bad-bg);color:var(--bad)}
+.foot{color:var(--muted);font-size:12px;margin-top:30px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
 .tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}
 .tile .n{font-size:26px;font-weight:700;line-height:1.1}.tile .l{color:var(--ink2);font-size:13px;margin-top:2px}.tile .s{color:var(--muted);font-size:12px;margin-top:4px}
@@ -229,9 +243,10 @@ boot();
 """
 
 
-def render_page(payload, key):
+def render_page(payload, key, plan=False):
     plain = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     blob = encrypt(plain, key)
+    plan_link = '<a class="navlink right" href="/plan">Planen</a>' if plan else ""
     return f"""<!doctype html>
 <html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Kvittotavlan</title><style>{CSS}</style></head>
@@ -239,10 +254,168 @@ def render_page(payload, key):
 <div id="lock" hidden><h1 style="font-size:20px;margin:0 0 6px">Kvittotavlan</h1><p style="color:var(--ink2)">Sidan är krypterad. Klistra in nyckeln, eller öppna länken med nyckeln efter #.</p>
 <input id="lockkey" type="password" placeholder="Nyckel" autocomplete="off"><div id="lockerr" class="err"></div><button id="lockbtn">Öppna</button></div>
 <div id="app" hidden><header><h1>Kvittotavlan</h1><span class="sub">{payload['entity_name']}</span><span class="sub" id="gen"></span></header>
-<nav><button data-tab="oversikt">Översikt</button><button data-tab="amex">Amex</button><button data-tab="pleo">Pleo</button></nav>
+<nav><button data-tab="oversikt">Översikt</button><button data-tab="amex">Amex</button><button data-tab="pleo">Pleo</button>{plan_link}</nav>
 <div id="view"></div>
 <p style="color:var(--muted);font-size:12px;margin-top:30px">Siffrorna räknas fram av scripts/dashboard.py ur ledgers, exporter, planer och kvittoarkivet. Inget skrivs in för hand.</p></div>
 </div><script>const ITER={PBKDF2_ITER};const BLOB="{blob}";{JS}</script></body></html>
+"""
+
+
+# ----------------------------------------------------------------------------- Kvittoplanen (/plan)
+
+_INLINE_CODE = re.compile(r"`([^`]+)`")
+_BOLD = re.compile(r"\*\*(.+?)\*\*")
+_LINK = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+_HEADING = re.compile(r"^(#{1,3})\s+(.*)$")
+_ORDERED = re.compile(r"^\d+\.\s+(.*)$")
+
+
+def esc(text):
+    return html_mod.escape(str(text if text is not None else ""), quote=False)
+
+
+def inline(text):
+    """Escape first, then the three inline forms: `code`, **bold**, [text](https://...)."""
+    out = esc(text)
+    out = _INLINE_CODE.sub(lambda m: f"<code>{m.group(1)}</code>", out)
+    out = _BOLD.sub(r"<strong>\1</strong>", out)
+    out = _LINK.sub(r'<a href="\2">\1</a>', out)
+    return out
+
+
+def md_to_html(text, skip_h1=False):
+    """The markdown subset docs/kvittoplanen.md uses: #, ## and ### headings, paragraphs,
+    - lists, 1. lists, > callouts (one paragraph), and the inline forms. Indented lines
+    continue the previous list item. Anything else is a paragraph; nothing is executed."""
+    parts, para, lst = [], [], None
+
+    def flush_para():
+        if para:
+            parts.append(f"<p>{inline(' '.join(para))}</p>")
+            para.clear()
+
+    def flush_list():
+        nonlocal lst
+        if lst is None:
+            return
+        tag, items = lst
+        if tag == "blockquote":
+            parts.append(f"<blockquote><p>{inline(' '.join(items))}</p></blockquote>")
+        else:
+            parts.append(f"<{tag}>" + "".join(f"<li>{inline(i)}</li>" for i in items) + f"</{tag}>")
+        lst = None
+
+    def start(tag, item):
+        nonlocal lst
+        flush_para()
+        if lst is None or lst[0] != tag:
+            flush_list()
+            lst = (tag, [])
+        lst[1].append(item)
+
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        if not stripped:
+            flush_para()
+            flush_list()
+            continue
+        m = _HEADING.match(stripped)
+        if m:
+            flush_para()
+            flush_list()
+            level = len(m.group(1))
+            if not (level == 1 and skip_h1):
+                parts.append(f"<h{level}>{inline(m.group(2))}</h{level}>")
+            continue
+        if stripped.startswith("> "):
+            start("blockquote", stripped[2:])
+            continue
+        if stripped.startswith("- "):
+            start("ul", stripped[2:])
+            continue
+        m = _ORDERED.match(stripped)
+        if m:
+            start("ol", m.group(1))
+            continue
+        if lst is not None and raw.startswith("  "):
+            lst[1][-1] += " " + stripped
+            continue
+        flush_list()
+        para.append(stripped)
+    flush_para()
+    flush_list()
+    return "\n".join(parts)
+
+
+def plan_status(model):
+    """The status strip on the plan page: every figure comes from the model, none is typed."""
+    s = model["summary"]
+    todo = model["todo"]
+    rows = model["amex"]["rows"]
+    held = sorted(t["key"].split(":", 1)[1] for t in todo if t["key"].startswith("fortnox-held:"))
+    paid = sum(1 for r in rows if r.get("reimbursed_via") == "pleo")
+    needs_tag = [r for r in rows if r.get("tag") == "needs-tag"]  # the tavla counts by tag, whatever the row's state
+    on_private = sum(1 for r in needs_tag if "2004" in str(r.get("card", "")))
+    export = model["sources"].get("pleo_export") or {}
+    flagged_open = s.get("flagged_open") or 0
+    refiled = s.get("flagged_refiled") or 0
+    missing = s.get("pleo_missing_live") or 0
+    booked = s.get("amex_vouchers_booked") or 0
+    chips = [
+        ("ok", f"Uppdaterad {model['today']}"),
+        ("warn" if any(t["severity"] == "crit" for t in todo) else "ok",
+         f"{sv_int(len(todo))} {plural(len(todo), 'punkt', 'punkter')} på tavlan"),
+        ("warn" if held else "ok",
+         "Fortnox-planer på hold: " + ", ".join(month_name(m) for m in held) if held else "Inga Fortnox-planer på hold"),
+        ("warn" if paid else "ok", f"Amex-rader redan ersatta via Pleo: {sv_int(paid)}"),
+        ("warn" if flagged_open else "ok", f"Fel kvitto i Pleo: {sv_int(flagged_open)} kvar, {sv_int(refiled)} rättade"),
+        ("warn" if needs_tag else "ok",
+         f"Otaggade Amex-rader: {sv_int(len(needs_tag))}, varav {sv_int(on_private)} på privatkortet"),
+        ("warn" if missing else "ok", f"Pleo-utgifter utan kvitto: {sv_int(missing)}, {sv_amount(s.get('pleo_missing_live_sek') or 0)}"),
+        ("ok" if booked else "warn", f"Bokfört i Fortnox: {sv_int(booked)} {plural(booked, 'verifikat', 'verifikat')}"),
+    ]
+    if s.get("next_amex_month"):
+        present = bool(s.get("next_amex_csv_present"))
+        chips.append(("ok" if present else "missing",
+                      f"Amex-CSV för {month_name(s['next_amex_month'])}: {'finns' if present else 'saknas'}"))
+    if export.get("age_days") is not None:
+        chips.append((export.get("state") or "ok", f"Pleo-exporten: {sv_int(export['age_days'])} dagar gammal"))
+    else:
+        chips.append(("missing", "Pleo-export saknas"))
+    return '<div class="src status">' + "".join(f'<span class="{tone}">{esc(text)}</span>' for tone, text in chips) + "</div>"
+
+
+PLAN_JS = r"""
+const $=s=>document.querySelector(s);
+async function decrypt(b64,key){const raw=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));const salt=raw.slice(8,16),ct=raw.slice(16);
+const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(key),'PBKDF2',false,['deriveBits']);
+const bits=new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:ITER,hash:'SHA-256'},km,384));
+const k=await crypto.subtle.importKey('raw',bits.slice(0,32),'AES-CBC',false,['decrypt']);
+const pt=await crypto.subtle.decrypt({name:'AES-CBC',iv:bits.slice(32,48)},k,ct);return JSON.parse(new TextDecoder().decode(pt))}
+async function unlock(key,remember){try{const html=await decrypt(BLOB,key.trim());if(remember){try{localStorage.setItem('kt-key',key.trim())}catch(e){}}$('#plan').innerHTML=html;$('#lock').hidden=true;$('#app').hidden=false;return true}catch(e){return false}}
+async function boot(){let key=(location.hash||'').slice(1);if(!key){try{key=localStorage.getItem('kt-key')||''}catch(e){}}
+if(key&&await unlock(key,true)){if(location.hash)history.replaceState(null,'',location.pathname);return}
+$('#lock').hidden=false;$('#lockbtn').onclick=async()=>{if(!await unlock($('#lockkey').value,true))$('#lockerr').textContent='Fel nyckel.'};
+$('#lockkey').onkeydown=e=>{if(e.key==='Enter')$('#lockbtn').click()}}
+boot();
+"""
+
+
+def render_plan_page(body_html, key):
+    """The plan page: the rendered markdown plus the status strip, encrypted with the site key.
+    The browser stores the key after the first unlock, so the tavla and the plan share one paste."""
+    blob = encrypt(json.dumps(body_html, ensure_ascii=False).encode("utf-8"), key)
+    return f"""<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Kvittoplanen</title><style>{CSS}</style></head>
+<body><div class="wrap">
+<div id="lock" hidden><h1 style="font-size:20px;margin:0 0 6px">Kvittoplanen</h1><p style="color:var(--ink2)">Sidan är krypterad. Klistra in nyckeln, eller öppna länken med nyckeln efter #.</p>
+<input id="lockkey" type="password" placeholder="Nyckel" autocomplete="off"><div id="lockerr" class="err"></div><button id="lockbtn">Öppna</button></div>
+<div id="app" hidden><header><h1>Kvittoplanen</h1><span class="sub">vägen till ett kvittoflöde utan händer</span></header>
+<nav><a class="navlink" href="/">Kvittotavlan</a><a class="navlink on" href="/plan">Planen</a></nav>
+<div id="plan" class="plan"></div>
+<p class="foot">Texten ligger i docs/kvittoplanen.md i receipts-repot. Statusraden räknas fram av scripts/dashboard.py när sidan byggs.</p></div>
+</div><script>const ITER={PBKDF2_ITER};const BLOB="{blob}";{PLAN_JS}</script></body></html>
 """
 
 
@@ -256,17 +429,27 @@ VERCEL_JSON = {
 }
 
 
-def build_site(root, today=None, out_dir=None):
+def build_site(root, today=None, out_dir=None, plan_source=None):
+    """Writes index.html (the tavla) and, when docs/kvittoplanen.md exists, plan.html (Kvittoplanen).
+    Returns (out_dir, key, model, has_plan)."""
     root = Path(root).resolve()
     out_dir = Path(out_dir) if out_dir else root / "out" / "site"
     out_dir.mkdir(parents=True, exist_ok=True)
     key = load_key(root)
     model = build_model(root, today)
-    html = render_page(page_payload(model), key)
+    plan_path = Path(plan_source) if plan_source else root / PLAN_SOURCE_REL
+    has_plan = plan_path.is_file()
+    html = render_page(page_payload(model), key, plan=has_plan)
     (out_dir / "index.html").write_text(html, encoding="utf-8")
+    plan_file = out_dir / "plan.html"
+    if has_plan:
+        body = plan_status(model) + "\n" + md_to_html(plan_path.read_text(encoding="utf-8"), skip_h1=True)
+        plan_file.write_text(render_plan_page(body, key), encoding="utf-8")
+    elif plan_file.exists():
+        plan_file.unlink()
     (out_dir / "vercel.json").write_text(json.dumps(VERCEL_JSON, indent=2) + "\n", encoding="utf-8")
-    (out_dir / ".vercelignore").write_text("*\n!index.html\n!vercel.json\n", encoding="utf-8")
-    return out_dir, key, model
+    (out_dir / ".vercelignore").write_text("*\n!index.html\n!plan.html\n!vercel.json\n", encoding="utf-8")
+    return out_dir, key, model, has_plan
 
 
 def deploy(out_dir, scope=None):
@@ -306,10 +489,14 @@ def main(argv=None):
             return 1
         print(f"{PROD_URL}/#{key}  (senaste deploy: {last.read_text(encoding='utf-8').split()[-1]})")
         return 0
-    out_dir, key, model = build_site(root, today, out_dir)
+    out_dir, key, model, has_plan = build_site(root, today, out_dir)
     size = (out_dir / "index.html").stat().st_size // 1024
     print(f"skrev {out_dir / 'index.html'} ({size} kB); {len(model['amex']['rows'])} Amex-rader, {len(model['pleo']['rows'])} Pleo-rader, "
           f"{len(model['todo'])} punkter att göra")
+    if has_plan:
+        print(f"skrev {out_dir / 'plan.html'} ({(out_dir / 'plan.html').stat().st_size // 1024} kB) från {PLAN_SOURCE_REL}")
+    else:
+        print(f"ingen {PLAN_SOURCE_REL}: /plan utelämnad")
     if args.deploy:
         url = deploy(out_dir, args.scope)
         print(f"deployad: {url} (produktion: {PROD_URL})")

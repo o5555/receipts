@@ -7,7 +7,7 @@ Read `README.md` first; it carries the current state, lanes, open decisions and 
 - Durable facts, card rules, accountant decisions and timeline: `/Users/odin/obrain/projects/pleo-api.md` (OBrain). Update OBrain when a rule or decision changes; do not keep a second copy here.
 - Runtime mail access: `/Users/odin/thor/projects/email-access/gmail_dwd_read.py` (read-only list and read, needs `--reason`, no attachment download, no send). Prefer it over the claude.ai Gmail connector, which breaks across logins.
 - Pleo: the `pleo` MCP server registered in Claude Code at user scope (`https://mcp.pleo.io/mcp`, OAuth callback port 19876; OAuth completes by pasting the localhost callback URL into `mcp__pleo__complete_authentication`, no tunnel needed). Viseo AB only; 5555 Media AB has no MCP. Reads are always fine. Writes (attach receipt, categorise, queue export) only after showing Oscar the batch and getting a yes. Never payouts.
-- Fortnox: the `fortnox` CLI in Thor (`~/.local/bin/fortnox`), dry-run first, exact approval phrase before `--execute`. Extended 2026-08-24 with the Amex lane commands (write voucher / inbox-upload / voucher-file-connection / salary-transaction plus vouchers, inbox, salary-transactions and employees reads); they need the pending scope re-consent (`fortnox auth setup --scopes "bookkeeping,inbox,connectfile,archive,salary,article"`) before they can execute. Run fortnox calls sequentially, never parallel (rotating refresh token under a file lock).
+- Fortnox: the `fortnox` CLI in Thor (`~/.local/bin/fortnox`), dry-run first, exact approval phrase before `--execute`. Extended 2026-08-24 with the Amex lane commands (write voucher / inbox-upload / voucher-file-connection / salary-transaction plus vouchers, inbox, salary-transactions and employees reads); the token holds all eleven scopes (`fortnox auth status` confirms; `fortnox auth setup --scopes "bookkeeping,inbox,connectfile,archive,salary,article"` re-consents if one is missing). Run fortnox calls sequentially, never parallel (rotating refresh token under a file lock).
 
 ## Commands
 
@@ -57,8 +57,9 @@ scripts/archive.py check                                       # lint plus plaus
 scripts/dashboard.py                                           # --json prints the model; --today YYYY-MM-DD fixes the date
 scripts/dashboard_site.py --deploy                             # hosted version at https://kvittotavlan.vercel.app (encrypted; key in data/dashboard.key)
 scripts/dashboard_site.py --print-url                          # the link with the key after #
+# /plan on the same site is Kvittoplanen, rendered from docs/kvittoplanen.md: edit the markdown, then --deploy
 
-# Offline test suite (compile + 1 254 checks + classify regression)
+# Offline test suite (compile + 1 283 checks + classify regression)
 scripts/run_checks.sh
 ```
 

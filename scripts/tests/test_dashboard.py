@@ -24,6 +24,7 @@ no Pleo, no Fortnox.
 
 Run: python3 scripts/tests/test_dashboard.py   (exit 0 = every check passed)
 """
+import base64
 import csv
 import datetime
 import hashlib
@@ -1365,6 +1366,98 @@ def run_cli(*args):
     return subprocess.run([sys.executable, SCRIPT] + list(args), capture_output=True, text=True)
 
 
+PLAN_FIXTURE = """# Rubrik ett
+
+Inledning med **fet text**, `kod` och en [länk](https://example.com/x) och HEMLIGT-ORD.
+
+> **Först.** En varning
+> över två rader.
+
+## Rubrik två
+
+- Punkt ett
+- Punkt **två** med `--execute`
+  som fortsätter på nästa rad.
+
+1. Steg ett
+2. Steg två
+
+Text med <script>alert(1)</script> som ska escapas.
+"""
+
+
+def check_site(work, full_root, lib_model):
+    """dashboard_site: the markdown subset, the computed status strip, and a site build whose
+    plan page carries the plan only encrypted (openssl decrypts it back, same as the browser)."""
+    import dashboard_site
+    h = call("md_to_html", dashboard_site.md_to_html, PLAN_FIXTURE)
+    if h is not None:
+        ok("md h1", "<h1>Rubrik ett</h1>" in h)
+        ok("md h2", "<h2>Rubrik två</h2>" in h)
+        ok("md bold and code", "<strong>fet text</strong>" in h and "<code>kod</code>" in h)
+        ok("md link", '<a href="https://example.com/x">länk</a>' in h)
+        ok("md blockquote joins lines", "<blockquote><p><strong>Först.</strong> En varning över två rader.</p></blockquote>" in h)
+        ok("md ul with continuation", "<ul><li>Punkt ett</li><li>Punkt <strong>två</strong> med <code>--execute</code> som fortsätter på nästa rad.</li></ul>" in h)
+        ok("md ol", "<ol><li>Steg ett</li><li>Steg två</li></ol>" in h)
+        ok("md escapes html", "&lt;script&gt;alert(1)&lt;/script&gt;" in h and "<script>" not in h)
+        h1less = dashboard_site.md_to_html(PLAN_FIXTURE, skip_h1=True)
+        ok("md skip_h1", "<h1>" not in h1less and "<h2>Rubrik två</h2>" in h1less)
+    st = call("plan_status", dashboard_site.plan_status, lib_model)
+    if st is not None:
+        ok("status strip updated", f"Uppdaterad {TODAY}" in st, st[:120])
+        ok("status strip counts todo", "på tavlan" in st and no_dashes(st))
+        ok("status strip amex csv", "Amex-CSV för" in st)
+        ok("status strip class", st.startswith('<div class="src status">'))
+    docs = os.path.join(full_root, "docs")
+    os.makedirs(docs, exist_ok=True)
+    write_text(os.path.join(docs, "kvittoplanen.md"), PLAN_FIXTURE)
+    site = os.path.join(work, "site")
+    res = call("build_site", dashboard_site.build_site, full_root, dashboard.to_date(TODAY), site)
+    if res is None:
+        return
+    out_dir, key, model, has_plan = res
+    ok("build_site has_plan", has_plan is True)
+    ok("build_site files", all(os.path.isfile(os.path.join(site, f)) for f in ("index.html", "plan.html", "vercel.json", ".vercelignore")),
+       sorted(os.listdir(site)))
+    ignore = open(os.path.join(site, ".vercelignore"), encoding="utf-8").read()
+    ok("vercelignore allows plan.html", "!plan.html" in ignore and "!index.html" in ignore)
+    index = open(os.path.join(site, "index.html"), encoding="utf-8").read()
+    ok("index links to /plan", 'href="/plan"' in index and "Planen" in index)
+    plan = open(os.path.join(site, "plan.html"), encoding="utf-8").read()
+    ok("plan page title", "<title>Kvittoplanen</title>" in plan and 'href="/"' in plan)
+    ok("plan page carries no plaintext", "HEMLIGT-ORD" not in plan and "Rubrik två" not in plan and "Uppdaterad" not in plan)
+    ok("plan page noindex", 'name="robots" content="noindex,nofollow"' in plan)
+    key_path = os.path.join(full_root, "data", "dashboard.key")
+    ok("site key written 600", os.path.isfile(key_path) and (os.stat(key_path).st_mode & 0o777) == 0o600)
+    m = re.search(r'const BLOB="([A-Za-z0-9+/=]+)"', plan)
+    ok("plan page has blob", m is not None)
+    if m is not None:
+        try:
+            raw = base64.b64decode(m.group(1))
+            proc = subprocess.run(["openssl", "enc", "-d", "-aes-256-cbc", "-pbkdf2", "-iter", str(dashboard_site.PBKDF2_ITER),
+                                   "-md", "sha256", "-pass", "pass:" + key], input=raw, capture_output=True, check=True)
+            body = json.loads(proc.stdout.decode("utf-8"))
+            ok("plan blob decrypts to the page", "HEMLIGT-ORD" in body and "<h2>Rubrik två</h2>" in body and f"Uppdaterad {TODAY}" in body)
+            ok("plan blob has no h1", "<h1>" not in body)
+        except Exception as exc:  # noqa: BLE001
+            ok("plan blob decrypts to the page", False, f"{type(exc).__name__}: {exc}")
+    res2 = call("build_site again", dashboard_site.build_site, full_root, dashboard.to_date(TODAY), site)
+    if res2 is not None:
+        ok("build_site keeps the key", res2[1] == key)
+    res3 = call("build_site without plan", dashboard_site.build_site, full_root, dashboard.to_date(TODAY), site,
+                os.path.join(work, "no-such-plan.md"))
+    if res3 is not None:
+        ok("build_site without plan drops the page", res3[3] is False and not os.path.exists(os.path.join(site, "plan.html")))
+        index2 = open(os.path.join(site, "index.html"), encoding="utf-8").read()
+        ok("index without plan has no link", 'href="/plan"' not in index2)
+    real = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "docs", "kvittoplanen.md")
+    if os.path.isfile(real):
+        text = open(real, encoding="utf-8").read()
+        rendered = dashboard_site.md_to_html(text, skip_h1=True)
+        ok("docs/kvittoplanen.md has no dashes", no_dashes(text))
+        ok("docs/kvittoplanen.md renders headings and the order list", "<h2>" in rendered and "<ol>" in rendered and "<blockquote>" in rendered)
+
+
 def check_cli(work, full_root, empty_root, lib_model):
     before = content_snapshot(full_root)
     p = run_cli("--root", full_root, "--today", TODAY, "--json")
@@ -1649,6 +1742,7 @@ def main():
     ok("library build leaves the empty root empty", os.listdir(empty) == [], os.listdir(empty))
     if mf is not None:
         check_cli(work, full, empty, mf)
+        check_site(work, full, mf)
 
     n_fail = sum(not c for _, c, _ in checks)
     if n_fail:
