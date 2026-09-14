@@ -30,6 +30,8 @@ Viseo's receipts system: get every receipt to where the accountant needs it with
 
 ## Layout
 
+- [Integration documentation reference](docs/integration-reference.md): local Firecrawl corpus, coverage, full-text search and freshness rules.
+
 - `data/amex/` Amex portal exports `activity*.csv` (gitignored). Drop new ones here.
 - `data/pleo/` Pleo downloads, unzipped, one folder per download (gitignored).
 - `out/` generated ledgers and worklists (gitignored).
