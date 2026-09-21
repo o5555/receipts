@@ -8,6 +8,17 @@ Receipt håller ihop kvittounderlag, köp och avstämning utan att blanda ihop d
 
 **Köp**: En identifierad affärshändelse hos en bestämd ägare, med datum, belopp och valuta. Ett köp och dess kvitto är separata begrepp.
 
+**Källa**: En plats där ett kvitto påträffats, till exempel ett visst mejl eller en portal. Ett kvitto kan ha flera källor och ingen av dem glöms.
+
+**Inkorg**: Bevarade kvitton som ännu inte är verifierade mot ett köp. Ägare och belopp i SEK är okända här.
+_Undvik_: Omatchat, väntelista.
+
+**Ledtråd**: En uppgift som antyder ägare, till exempel mottagande brevlåda eller köparnamn på kvittot. En ledtråd avgör aldrig ägaren; det gör köpet.
+
+**Möjlig dubblett**: Två olika filer som ser ut att vara samma kvitto. De förs ihop utan att någon fil eller källa tas bort.
+
+**Avvisat**: Ett bevarat dokument som bedömts inte vara ett kvitto. Det ligger kvar men ingår inte i matchning.
+
 **Kvitto klart**: Originalet är sparat och verifierat mot rätt köp och ägare.
 _Undvik_: Fixad, fil hittad.
 
