@@ -1,43 +1,45 @@
 # Kvittoplanen
 
-Vad som krävs för att kvittoflödet ska gå av sig självt. Genomgången gjordes 2026-09-04 med nio agenter: en inventering, tre oberoende förslag och två kritiker. Texten beskriver läget nu. Siffrorna överst räknas fram ur tavlans underlag varje gång sidan byggs.
+Receipt samlar kvitton, matchar dem mot köp och följer upp det som återstår. Odin sköter insamlingen. Oscar lämnar Amex-underlaget, hjälper till vid verkliga åtkomsthinder och godkänner bokföring och ersättning i en gemensam batch. Detta är den beslutade målbilden 2026-09-21. Det löpande flödet är ännu inte färdigbyggt eller verifierat i drift.
 
-> **Först av allt.** Juni- och juliplanerna får inte köras som de är. Ett tjugotal Amex-rader ersattes redan genom Pleo-utbetalningarna 2026-07-09, bland annat Wincher 2026-06-10 på 3 548,41 SEK, och planbyggaren `fortnox_lane.py` läser inte den flaggan. Planerna är stoppade för hand sedan 2026-09-07. Steg 1 gör stoppet mekaniskt, innan någon godkännandekod lämnas tillbaka.
+## Första provet: augusti 2026
 
-## Vad "helt automatiskt" betyder
+Augusti ska stänga den gamla kön först. Underlaget måste visa att hela perioden omfattas. Senaste köpdatum räcker inte som bevis. Historiska Pleo-utgifter, bokföring och ersättningar ska stämmas av så att ett återfunnet kvitto aldrig leder till dubbel ersättning.
 
-Målet är 15 till 25 minuter i månaden för Oscar, inte noll. Fyra saker stannar hos dig, av skäl som inte går att bygga bort:
+## Det löpande flödet
 
-- **Amex-CSV en gång i månaden**, cirka 5 minuter. Inget svenskt Amex-kort har en maskinell feed. Att skrapa portalen bakom SafeKey och Akamai blir det bräckligaste i hela systemet.
-- **Godkännandekoden för Fortnox**, cirka 5 minuter. Din egen regel, och koden är dess spärr. En vetotid i stället för kod är ditt att ge senare.
-- **En tagg per aldrig sedd handlare**, 1 till 2 minuter. Företag eller privat gissas aldrig. Varje svar blir en regel, så samma leverantör frågas aldrig två gånger.
-- **BankID och inloggningar.** Kivra kräver Mobilt BankID för varje användare. Pleo- och Fortnox-samtycken är bundna till dig. Utgående mejl och Pleo-utbetalningar likaså.
+1. Spara inkommande kvitton från mejl, inklusive PDF, bild och kvittotext i mejlet. Behåll original, källa och sökbar Markdown med frontmatter även innan ett köp har importerats.
+2. Håll privata kvitton och respektive bolags kvitton åtskilda. Okänd tillhörighet väntar på klassificering utan att originalet förloras.
+3. Importera Amex-underlaget och kontrollera periodtäckning. Matcha mot befintligt arkiv med konto, ägare, belopp, valuta och datum som evidens.
+4. Bygg leverantörsregistret från tidigare kvitton, Pleo och bokföring: konto, faktureringsmejl, portal, inloggningsreferens och senast fungerande metod. Lagra hemligheter i avsedd hemlighetshantering.
+5. Hämta återstående underlag via mejl, API/MCP eller datorinteraktion. En blockerad leverantör ska inte stoppa andra köp. Spara försöken och återuppta efter avbrott.
+6. Rapportera kvarstående undantag med vad som saknas, vad som har prövats, exakt nästa hjälp och hur återkommande problem kan förebyggas.
 
-Allt annat som är manuellt i dag är en av tre saker: kod som finns men ingen har schemalagt, en policy bara du kan lätta på, eller ett kvitto som aldrig når en brevlåda.
+## Beslutad automatik
 
-## Var det manuella sitter
+Säkert matchade kvitton får bifogas automatiskt till befintliga Pleo-utgifter. Resultatet ska läsas tillbaka och verifieras. Osäkra matchningar behöver granskas.
 
-- **Inget är schemalagt.** Matchning, hämtning, arkivkontroll och tavlan körs bara när en agent kommer ihåg det. Lösningen är en deterministisk körning på OpenClaw-cron, som redan bär 1Password, Gmail-nyckeln och Discord. Fortnox-keepalive klockan 06:15 bevisar att miljön fungerar utan händer. Dagligen: matcha, hämta, kontrollera arkivet, bygg tavlan, posta i #receipts bara när något ändrats. Den 3:e varje månad: månadsstängning, dry-run, plan.md och koden till din telefon.
-- **Pleo hänger på en levande session.** Claude Codes nyckellager har ingen refresh-token för Pleo, så varje Pleo-åtgärd kräver att du klistrar in callback-länken. Pleos OAuth-server stödjer refresh-tokens och egen klientregistrering, kontrollerat 2026-09-04. En egen liten klient med token i Odins nyckelring är ett test bort, med en inklistring från dig. Fungerar det kör Lane A utan dig. Annars blir det en session på 5 minuter i veckan.
-- **Fel kvitton bifogas.** De flaggade raderna visar att bifoga utan kontroll är felmoden. Tolv rättades 2026-09-07 och de gamla filerna ligger kvar. En kontrollgrind före varje bifogning återanvänder arkivets egna kontroller: belopp på öret, datumfönster, köpare Viseo AB, fakturanummer och filhash som inte redan sitter på ett annat köp. Aldrig på rader som redan exporterats till Trimero. Med grinden på plats kan du ge en stående regel att bifoga utan ja per batch, och sammanfattningen rapporterar i efterhand.
-- **Kvitton som aldrig kommer.** Åtgärda vid källan, inte med webbläsarautomation. Hitta inloggningen bakom de tre Claude Pro-raderna och peka faktureringsmejlen mot viseo.se. NordVPN på tvåårsavtal. SATS årskvitto en gång om året. Avgör om ChatGPT Pro är värt en manuell faktura, eftersom OpenAI aldrig mejlar kvitton. Registrera Viseos momsnummer i varje portal. Skapa kvitton@viseo.se som gratis alias, så varje leverantör fakturerar en adress systemet redan läser.
-- **Kivra.** En kontroll av dig: lägger Kivra sin egen faktura i företagsbrevlådan? Om ja speglar Kivra-till-Fortnox-kopplingen den till Fortnox-inkorgen och Nicolina bokför den. Om inte, be henne om en regel för bruttobokning och hämta PDF:erna en gång i kvartalet.
-- **Beslut som blockerar driftstarten.** Trimero-brevet är oskickat sedan 2026-08-24. Det behöver fyra rader till: brytdag och vem som kör Pleos exportkö, vem som kör lönekörningen som betalar ditt utlägg, hur hon markerar en stängd månad, och beloppsgränsen för kvitto. Av de otaggade Amex-raderna ligger de flesta på privatkortet och blir privata enligt din egen regel. Kvar för dig är raderna på företagskortet plus två kortbeslut: kontot 13003 privat, kontot 61006 samma kort som 62004.
-- **Behörigheter.** Klassificeraren stoppar agenten från dry-runs, så du kör dem. En inställningsfil som tillåter dry-runs och de skrivskyddade Gmail-skripten, och nekar allt med `--execute`, tar dig ur varje felsökningsloop.
+Bokföring och ersättning förbereds enligt fastställda regler och godkänns tillsammans av Oscar. Den första versionen återanvänder den gemensamma batchen; separat automatisk bokföring behöver inte byggas. Oklar bolagstillhörighet, kontering eller momsbehandling stoppar den berörda raden tills frågan är löst.
 
-## Ordning
+Ersättning kräver Oscars godkännande. Ett verifikat, ett förberett löneunderlag eller ett återfunnet kvitto bevisar inte att pengar har betalats ut.
 
-1. **Systemet:** uteslut Pleo-ersatta rader och inför kvittoregeln i Fortnox-planen: inget momslyft utan kvitto, rader över 4 000 SEK utan kvitto hålls. Bygg om planerna för maj, juni och juli.
-2. **Du, 15 minuter:** skicka brevet, tagga raderna på företagskortet, de två kortbesluten, "godkänn receipts cron", godkänn behörighetsinställningarna.
-3. **Systemet:** cron-ingången, OpenClaw-jobben, rutindokumenten i Thor, månadssammanfattningen, en fast måndagsrad så att tystnad märks.
-4. **Första skarpa körningen** på juli, sedan juni och maj. Utan lönerad tills Nicolinas svar om löneart finns.
-5. **Pleo-tokentest**, sedan kontrollgrinden och den stående bifogningsregeln.
-6. **Din leverantörsgenomgång**, cirka 30 minuter.
-7. **Din eftersläpningskväll**, cirka 2 timmar, förberedd av systemet: Bazooms marsfaktura, Kivra-PDF:erna, de kvarvarande omfilningarna med filer förhämtade, den väntande utbetalningen, och förnya det virtuella kortet en gång före oktober.
-8. **Senare, efter två rena Amex-månader:** flytta SaaS-abonnemangen från Pleo och lämna Pleo vid de tre kontrollpunkterna.
+## Fyra separata statusar
 
-Inte nu: skrapning av Amex- eller leverantörsportaler, en andra Fortnox-profil för 5555 Media, en vetotid i stället för godkännandekod.
+- **Kvitto klart:** originalet är sparat och verifierat mot rätt köp och ägare.
+- **Bokfört:** posten är verifierad i bokföringen med referens.
+- **Ersatt:** faktisk ersättning är styrkt med betalningsreferens.
+- **Avslutat:** samtliga tillämpliga steg är verifierat klara.
 
-## Vad det ger
+Varje status behöver visa sin källa. Ett ej tillämpligt steg skiljs från ett steg som saknar evidens. Återstående undantag får inte döljas av att ett annat steg är klart.
 
-I dag går ungefär 105 minuter i månaden, och det är en underskattning eftersom du driver sessionerna. Efter steg 1 till 7 återstår 15 till 25 minuter, plus en engångsinsats på ungefär 2 timmar för eftersläpningen.
+## Vad som finns och vad som återstår
+
+Markdown-arkivet, filerna, mejlsökningen och Kvittotavlan finns. Den nuvarande mejlhämtningen utgår främst från transaktioner; insamling före ett känt köp behöver tillkomma.
+
+Kodgranskningen 2026-09-21 visar att Kvittotavlan kan kalla ett köp ersatt enbart på grund av ett verifikat. Fortnox-planbyggaren utesluter inte automatiskt gamla Pleo-ersättningar. Den gemensamma exekveraren hanterar bokföring och löneunderlag i samma batch. Status- och dubblettskydden behöver rättas och provas före skarp körning. Den gemensamma batchen behålls för enkelhetens skull.
+
+Nästa byggsteg behöver därför en gemensam evidensmodell, skydd mot dubbel behandling, ett gemensamt godkännande för bokföring och ersättning samt en inkorg för kvitton som ännu saknar matchat köp. Schemaläggning och beständig åtkomst ska provas i den verkliga körmiljön på Odin, inte antas fungera utifrån en installerad CLI eller en tidigare interaktiv inloggning.
+
+## Senare beslut
+
+Pleo-köp flyttas först efter en avstämd provmånad och granskad historik. Att flytta Oscars köp är ett separat beslut från att säga upp Pleo för hela bolaget. Accounted kan utvärderas som framtida bokföringsdestination; Receipt behåller arkiv och matchning oavsett destination.

@@ -2,11 +2,19 @@
 
 Read `README.md` first; it carries the current state, lanes, open decisions and next actions. This is Oscar's (Viseo AB) receipts system, not a software product: raw card statements (American Express) and Pleo exports become worklists of transactions that still need a receipt, joined against evidence in Gmail, and eventually attached in Pleo or booked in Fortnox without manual forwarding.
 
+## Current build direction
+
+For ongoing collection, status semantics and automation boundaries, read `docs/kvittoplanen.md` and `CONTEXT.md`. Oscar selected August 2026 as the first proof month on 2026-09-21. The private Wayfinder map is `.scratch/receipt/map.md`; tracker operations are in `docs/agents/issue-tracker.md`.
+
+Oscar authorizes confidently matched receipts to be attached to existing Pleo expenses automatically, with read-back verification. For the first implementation, retain one combined approval for bookkeeping and reimbursement: Oscar explicitly prefers simplicity and accepts approving both together. Ask on uncertain matches or unresolved ownership/account/VAT rules. Source: Oscar's answers and subsequent simplicity clarification in the Codex Receipt task, 2026-09-21; durable record in OBrain `projects/pleo-api`.
+
+Reuse the Fortnox executor's combined batch gate, and fix evidence, duplicate protection and HOLD enforcement before live use. Separate execution paths are not required for this version. A voucher or salary transaction is not evidence of a paid reimbursement; the dashboard must display these statuses separately.
+
 ## Sources of truth
 
 - Durable facts, card rules, accountant decisions and timeline: `/Users/odin/obrain/projects/pleo-api.md` (OBrain). Update OBrain when a rule or decision changes; do not keep a second copy here.
 - Runtime mail access: `/Users/odin/thor/projects/email-access/gmail_dwd_read.py` (read-only list and read, needs `--reason`, no attachment download, no send). Prefer it over the claude.ai Gmail connector, which breaks across logins.
-- Pleo: the `pleo` MCP server registered in Claude Code at user scope (`https://mcp.pleo.io/mcp`, OAuth callback port 19876; OAuth completes by pasting the localhost callback URL into `mcp__pleo__complete_authentication`, no tunnel needed). Viseo AB only; 5555 Media AB has no MCP. Reads are always fine. Writes (attach receipt, categorise, queue export) only after showing Oscar the batch and getting a yes. Never payouts.
+- Pleo: the `pleo` MCP server registered in Claude Code at user scope (`https://mcp.pleo.io/mcp`, OAuth callback port 19876; OAuth completes by pasting the localhost callback URL into `mcp__pleo__complete_authentication`, no tunnel needed). Viseo AB only; 5555 Media AB has no MCP. Reads and confidently matched receipt attachment with read-back verification are authorized. Categorisation and export-queue writes still require a specific batch approval. Never payouts.
 - Fortnox: the `fortnox` CLI in Thor (`~/.local/bin/fortnox`), dry-run first, exact approval phrase before `--execute`. Extended 2026-08-24 with the Amex lane commands (write voucher / inbox-upload / voucher-file-connection / salary-transaction plus vouchers, inbox, salary-transactions and employees reads); the token holds all eleven scopes (`fortnox auth status` confirms; `fortnox auth setup --scopes "bookkeeping,inbox,connectfile,archive,salary,article"` re-consents if one is missing). Run fortnox calls sequentially, never parallel (rotating refresh token under a file lock).
 
 ## Commands
@@ -82,7 +90,7 @@ Stdlib-only Python 3, no build, no dependency manager. Classification is deliber
 - 5555 Media receipts must be forwarded from `oscar@5555.media`, not from viseo.se.
 - Kivra fees (123,75 SEK) appear as Pleo rows without receipts and Nicolina wants a receipt for each of them; Kivra receipts exist only behind BankID in the Kivra app, so Oscar downloads them himself.
 - Pleo card exports contain card purchases and payout rows only; out-of-pocket expenses appear solely as references in `Reconciled Entries`.
-- Nothing here sends email, forwards to Fetch, submits Pleo expenses, or writes to Fortnox without explicit approval of the specific batch.
+- Email sending, forwarding to Fetch, creating Pleo expenses and reimbursement require explicit approval of the specific batch. Receipt attachment follows Current build direction above; bookkeeping and reimbursement retain the combined approval.
 - Kvittotavlan (`scripts/dashboard.py`, then `scripts/dashboard_site.py --deploy`) is rerun after anything that changes `out/`, `data/pleo/` or the archive, so the page Oscar reviews never lags the data. Its numbers are computed, never typed in. The hosted page carries encrypted data only; never deploy it unencrypted and never commit `data/dashboard.key` or `out/site/`.
 - Every receipt that is fetched or attached also lands in the kvittoarkiv (`scripts/archive.py add` or an ingest); `month_end.py` runs the Amex ingest itself. `scripts/archive.py check` warnings about wrong-period receipts or another company as buyer are worklist items for Oscar, not things to fix in the archive.
 - Keep raw exports, receipts, PDFs and `archive/` out of git; the GitHub remote is public. Plain text, no em dashes, amounts in Swedish format (1 234,56 SEK) in anything Oscar or Trimero reads.
