@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYP - Kvittoinkorg</title>
+<style>
+  :root { --bg:#f7f6f3; --card:#fff; --ink:#1d1d1b; --mute:#6b6a66; --line:#dcdad3; --accent:#1f5fbf; --bad:#a3271f; --ok:#1d6b3a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:24px 16px 80px; }
+  h1 { font-size:24px; margin:0 0 4px; } h2 { font-size:17px; margin:32px 0 8px; } h3 { font-size:15px; margin:0 0 6px; }
+  .tag { display:inline-block; font-size:12px; padding:1px 8px; border:1px solid var(--line); border-radius:10px; color:var(--mute); margin-right:4px; }
+  .tag.warn { color:var(--bad); border-color:var(--bad); } .tag.ok { color:var(--ok); border-color:var(--ok); }
+  .intro { color:var(--mute); max-width:75ch; }
+  .banner { padding:10px 14px; border-radius:6px; margin:12px 0; border:1px solid var(--line); background:var(--card); }
+  .banner.bad { border-color:var(--bad); color:var(--bad); } .banner.ok { border-color:var(--ok); }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media (max-width:800px) { .grid { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:12px 14px; margin-bottom:10px; }
+  .card.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .card.new { background:#f1f6ff; }
+  dl { display:grid; grid-template-columns:130px 1fr; gap:2px 10px; margin:6px 0; } dt { color:var(--mute); } dd { margin:0; }
+  ul { margin:4px 0; padding-left:18px; }
+  button, select { font:inherit; padding:5px 10px; margin:3px 4px 3px 0; border:1px solid var(--line); background:#fff; border-radius:5px; cursor:pointer; }
+  button:hover { border-color:var(--accent); } button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:default; }
+  pre { background:#1d1d1b; color:#e9e7e0; padding:12px; border-radius:6px; overflow-x:auto; font-size:12.5px; line-height:1.45; margin:6px 0; }
+  .tabs button.on { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .steps button { display:block; text-align:left; width:100%; } .steps button.done { color:var(--mute); text-decoration:line-through; }
+  .steps button.next { border-color:var(--accent); }
+  .mute { color:var(--mute); } .small { font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Kvittoinkorg <span class="tag warn">PROTOTYP, kastas</span></h1>
+<p class="intro"><b>Frågan:</b> hur bevaras ett inkommet kvitto innan köp och bolag är kända, och hur förs det in i arkivet utan att original eller källor tappas?
+Modellen nedan: varje kvitto får en sida i en <b>inkorg</b> direkt när det kommer in. Originalfilerna sparas oförändrade, varje mejl det kom i läggs till i en lista som bara växer, och bolag och SEK-belopp står tomma tills kvittot matchats mot ett <b>köp</b>. Först då får det flytta till arkivet. All data här är påhittad.</p>
+
+<div id="last"></div>
+
+<h2>Guidade fall</h2>
+<div class="tabs" id="tabs"></div>
+<div class="card"><p id="scDesc" class="small"></p><div class="steps" id="steps"></div></div>
+
+<h2>Fritt läge: inkommande mejl</h2>
+<div id="mails"></div>
+<button id="reset">Nollställ allt</button>
+
+<div class="grid">
+  <div><h2>Inkorg (före matchning)</h2><div id="inbox"></div></div>
+  <div><h2>Arkiv (kvitto klart)</h2><div id="archive"></div>
+       <h2>Köp (från Amex och Pleo)</h2><div id="purchases"></div></div>
+</div>
+
+<h2>Sidan på disk för valt kvitto</h2>
+<p class="small mute">Klicka på ett kvitto ovan. Så här skulle Markdown-sidan med frontmatter se ut.</p>
+<pre id="page">Inget kvitto valt.</pre>
+</main>
+
+<script>
+/* ===== Pure module: no DOM below this line until "PAGE SHELL". Liftable into scripts/. ===== */
+const MAILS = {
+  m1: { ref:'msg-a1', mailbox:'oscar@viseo.se', from:'order@nordtryck.example', subject:'Kvitto order 5581', received:'2026-08-05',
+        label:'Nordtryck: kvitto som PDF-bilaga (SEK)',
+        parts:[{ name:'kvitto-5581.pdf', sha:'9f2c11', role:'bilaga' }],
+        facts:{ vendor:'Nordtryck AB', docKind:'kvitto', docDate:'2026-08-05', amount:1249.00, currency:'SEK', invoice:'5581', buyerOnDoc:'Viseo AB' } },
+  m2: { ref:'msg-b7', mailbox:'oscar@5555.media', from:'oscar@viseo.se', subject:'Fwd: Kvitto order 5581', received:'2026-08-06',
+        label:'Samma Nordtryck-PDF, vidarebefordrad till annan brevlåda',
+        parts:[{ name:'kvitto-5581.pdf', sha:'9f2c11', role:'bilaga' }],
+        facts:{ vendor:'Nordtryck AB', docKind:'kvitto', docDate:'2026-08-05', amount:1249.00, currency:'SEK', invoice:'5581', buyerOnDoc:'Viseo AB' } },
+  m3: { ref:'msg-c3', mailbox:'oscar@viseo.se', from:'billing@pixelverktyg.example', subject:'Your receipt PV-88412', received:'2026-08-14',
+        label:'Pixelverktyg: kvitto enbart som HTML-mejl (USD)',
+        parts:[{ name:'mejl-msg-c3.html', sha:'4be0d2', role:'mejlets html' }],
+        facts:{ vendor:'Pixelverktyg Inc', docKind:'kvitto', docDate:'2026-08-14', amount:24.00, currency:'USD', invoice:'PV-88412', buyerOnDoc:'' } },
+  m4: { ref:'msg-d9', mailbox:'oscar@viseo.se', from:'billing@pixelverktyg.example', subject:'Invoice PV-88412 (PDF)', received:'2026-08-15',
+        label:'Pixelverktyg: samma faktura igen, nu som PDF',
+        parts:[{ name:'invoice-PV-88412.pdf', sha:'c77a90', role:'bilaga' }],
+        facts:{ vendor:'Pixelverktyg Inc', docKind:'kvitto', docDate:'2026-08-14', amount:24.00, currency:'USD', invoice:'PV-88412', buyerOnDoc:'' } },
+  m5: { ref:'msg-e2', mailbox:'oscar@viseo.se', from:'billing@pixelverktyg.example', subject:'Credit note PV-88412-CR', received:'2026-08-20',
+        label:'Pixelverktyg: kreditnota (USD, minus)',
+        parts:[{ name:'credit-PV-88412-CR.pdf', sha:'e1055b', role:'bilaga' }],
+        facts:{ vendor:'Pixelverktyg Inc', docKind:'kredit', docDate:'2026-08-20', amount:-24.00, currency:'USD', invoice:'PV-88412-CR', creditsInvoice:'PV-88412', buyerOnDoc:'' } },
+  m6: { ref:'msg-f4', mailbox:'oscar@viseo.se', from:'no-reply@molnlagret.example', subject:'Payment receipt', received:'2026-08-11',
+        label:'Molnlagret: kvitto utan köparnamn, kom till viseo-brevlådan (EUR)',
+        parts:[{ name:'receipt-7731.pdf', sha:'70aa3e', role:'bilaga' }],
+        facts:{ vendor:'Molnlagret Ltd', docKind:'kvitto', docDate:'2026-08-11', amount:49.00, currency:'EUR', invoice:'7731', buyerOnDoc:'' } },
+  m7: { ref:'msg-g8', mailbox:'oscar@viseo.se', from:'news@pixelverktyg.example', subject:'Din månadsrapport', received:'2026-08-18',
+        label:'Pixelverktyg: månadsrapport (inget kvitto)',
+        parts:[{ name:'rapport-aug.pdf', sha:'0d41f6', role:'bilaga' }],
+        facts:{ vendor:'Pixelverktyg Inc', docKind:'okänt', docDate:'2026-08-18', amount:null, currency:'', invoice:'', buyerOnDoc:'' } },
+};
+
+const PURCHASES = [
+  { id:'P1', owner:'Viseo AB',      card:'Amex 1022', date:'2026-08-05', merchant:'NORDTRYCK',      amount:1249.00, currency:'SEK', amountSek:1249.00 },
+  { id:'P2', owner:'Viseo AB',      card:'Pleo',      date:'2026-08-14', merchant:'PIXELVERKTYG',   amount:24.00,   currency:'USD', amountSek:262.18 },
+  { id:'P3', owner:'Viseo AB',      card:'Pleo',      date:'2026-08-21', merchant:'PIXELVERKTYG',   amount:-24.00,  currency:'USD', amountSek:-259.90 },
+  { id:'P4', owner:'5555 Media AB', card:'Pleo',      date:'2026-08-11', merchant:'MOLNLAGRET',     amount:49.00,   currency:'EUR', amountSek:561.44 },
+];
+const MAILBOX_OWNER = { 'oscar@viseo.se':'Viseo AB', 'oscar@5555.media':'5555 Media AB' };
+const DATE_WINDOW_DAYS = 10;
+
+function initialState() { return { kvitton:[], purchases:PURCHASES, n:0, last:null, touched:null }; }
+const clone = o => JSON.parse(JSON.stringify(o));
+const days = (a, b) => Math.abs((new Date(a) - new Date(b)) / 86400000);
+const sourceOf = (m, p) => ({ kind:'gmail', ref:m.ref, mailbox:m.mailbox, from:m.from, subject:m.subject, received:m.received, part:p.name });
+const ok = (s, msg, id) => ({ ...s, last:{ ok:true, msg }, touched:id || null });
+const refuse = (s, msg, id) => ({ ...s, last:{ ok:false, msg }, touched:id || null });
+
+function reduce(state, a) {
+  const s = clone(state);
+  const get = id => s.kvitton.find(k => k.id === id);
+
+  if (a.type === 'receive') {
+    const m = MAILS[a.mail];
+    // 1. Same bytes already known (inbox or archive): one receipt, one more source. Nothing new is created.
+    const known = s.kvitton.find(k => k.files.some(f => m.parts.some(p => p.sha === f.sha)));
+    if (known) {
+      let added = 0;
+      for (const p of m.parts) {
+        if (!known.sources.some(x => x.ref === m.ref && x.part === p.name)) { known.sources.push(sourceOf(m, p)); added++; }
+        if (!known.files.some(f => f.sha === p.sha)) known.files.push({ name:p.name, sha:p.sha, role:p.role });
+      }
+      return added ? ok(s, `Samma fil fanns redan som ${known.id}. Inget nytt kvitto skapades, mejlet lades till som källa nummer ${known.sources.length}.`, known.id)
+                   : ok(s, `Mejlet ${m.ref} är redan registrerat på ${known.id}. Ingenting ändrades.`, known.id);
+    }
+    // 2. New document: intake page with what the document itself says. Owner and SEK stay empty.
+    const k = { id:'K' + (++s.n), place:'inkorg', status:'inkommet', facts:clone(m.facts), reviewed:false,
+                files:m.parts.map(p => ({ name:p.name, sha:p.sha, role:p.role })), sources:m.parts.map(p => sourceOf(m, p)),
+                entity:null, amountSek:null, purchase:null, flags:[], creditOf:null, mergedFrom:[] };
+    const hint = MAILBOX_OWNER[m.mailbox];
+    k.ownerHints = [hint ? `brevlåda ${m.mailbox} tyder på ${hint}` : null, m.facts.buyerOnDoc ? `köpare på kvittot: ${m.facts.buyerOnDoc}` : null].filter(Boolean);
+    // 3. Different bytes, same vendor and invoice number: flagged, never merged or dropped on its own.
+    const twin = m.facts.invoice && s.kvitton.find(x => x.status !== 'avvisat' && x.facts.vendor === m.facts.vendor && x.facts.invoice === m.facts.invoice);
+    if (twin) k.flags.push({ kind:'dubblett', of:twin.id, text:`Möjlig dubblett av ${twin.id}: samma leverantör och fakturanummer, men annan fil.` });
+    if (m.facts.creditsInvoice) {
+      const orig = s.kvitton.find(x => x.facts.vendor === m.facts.vendor && x.facts.invoice === m.facts.creditsInvoice);
+      k.creditOf = orig ? orig.id : `faktura ${m.facts.creditsInvoice} (inte i Receipt ännu)`;
+    }
+    s.kvitton.push(k);
+    return ok(s, `Nytt kvitto ${k.id} i inkorgen. Original sparat. Bolag och SEK-belopp är okända tills ett köp matchar.`, k.id);
+  }
+
+  const k = get(a.id);
+  if (!k) return refuse(s, 'Kvittot finns inte.');
+
+  if (a.type === 'review') {
+    if (k.facts.docKind === 'okänt') return refuse(s, `${k.id} går inte att granska som kvitto: dokumentet saknar belopp. Avvisa det i stället.`, k.id);
+    k.reviewed = true; if (k.status === 'inkommet') k.status = 'granskat';
+    return ok(s, `${k.id} granskat: leverantör, datum, belopp och valuta är lästa ur dokumentet.`, k.id);
+  }
+
+  if (a.type === 'reject') {
+    if (k.place === 'arkiv') return refuse(s, `${k.id} ligger i arkivet och kan inte avvisas härifrån.`, k.id);
+    k.status = 'avvisat'; k.rejectReason = a.reason || 'inget kvitto';
+    return ok(s, `${k.id} avvisat (${k.rejectReason}). Originalet och källan ligger kvar, inget raderas.`, k.id);
+  }
+
+  if (a.type === 'merge') {
+    const flag = k.flags.find(f => f.kind === 'dubblett');
+    if (!flag) return refuse(s, `${k.id} har ingen dubblettflagga att slå ihop.`, k.id);
+    const into = get(flag.of);
+    for (const f of k.files) if (!into.files.some(x => x.sha === f.sha)) into.files.push(f);
+    for (const x of k.sources) into.sources.push(x);
+    into.mergedFrom.push(k.id);
+    // PDF outranks mail html as the primary original
+    into.files.sort((x, y) => (y.name.endsWith('.pdf') ? 1 : 0) - (x.name.endsWith('.pdf') ? 1 : 0));
+    s.kvitton = s.kvitton.filter(x => x.id !== k.id);
+    return ok(s, `${k.id} slogs ihop med ${into.id}. Båda filerna och alla ${into.sources.length} källor finns kvar på ${into.id}.`, into.id);
+  }
+
+  if (a.type === 'match') {
+    const p = s.purchases.find(x => x.id === a.purchase);
+    if (k.status === 'avvisat') return refuse(s, `${k.id} är avvisat.`, k.id);
+    if (!k.reviewed) return refuse(s, `${k.id} måste granskas innan det matchas mot ett köp.`, k.id);
+    const taken = s.kvitton.find(x => x.purchase === p.id && x.id !== k.id);
+    if (taken) return refuse(s, `Köp ${p.id} har redan kvittot ${taken.id}. Ett köp får inte två olika kvitton utan att någon tittar.`, k.id);
+    if (p.currency !== k.facts.currency || Math.abs(p.amount - k.facts.amount) > 0.005)
+      return refuse(s, `Ingen match: kvittot säger ${fmt(k.facts.amount, k.facts.currency)}, köpet ${p.id} säger ${fmt(p.amount, p.currency)}. Belopp och valuta måste stämma exakt, tecknet inräknat.`, k.id);
+    if (days(p.date, k.facts.docDate) > DATE_WINDOW_DAYS) return refuse(s, `Ingen match: ${Math.round(days(p.date, k.facts.docDate))} dagar mellan kvitto och köp.`, k.id);
+    k.purchase = p.id; k.entity = p.owner; k.amountSek = p.amountSek; k.card = p.card; k.status = 'matchat';
+    k.flags = k.flags.filter(f => f.kind !== 'ägare');
+    const hinted = MAILBOX_OWNER[k.sources[0].mailbox];
+    if (k.facts.buyerOnDoc && k.facts.buyerOnDoc !== p.owner) k.flags.push({ kind:'ägare', text:`Kvittot är utställt på ${k.facts.buyerOnDoc} men köpet tillhör ${p.owner}. Punkt på Oscars lista.` });
+    else if (hinted && hinted !== p.owner) k.flags.push({ kind:'ägare', text:`Kom till ${k.sources[0].mailbox} men köpet tillhör ${p.owner}. Bolaget sätts av köpet, brevlådan är bara en ledtråd.` });
+    return ok(s, `${k.id} matchat mot köp ${p.id}. Bolag (${p.owner}) och SEK-belopp (${fmt(p.amountSek, 'SEK')}) kommer från köpet, inte från en gissning.`, k.id);
+  }
+
+  if (a.type === 'archive') {
+    if (k.place === 'arkiv') return refuse(s, `${k.id} ligger redan i arkivet.`, k.id);
+    if (k.flags.some(f => f.kind === 'dubblett')) return refuse(s, `${k.id} har en olöst dubblettflagga. Slå ihop eller avvisa först.`, k.id);
+    if (!k.purchase) return refuse(s, `${k.id} får inte in i arkivet: inget köp är matchat, så bolag och SEK-belopp är okända. Det ligger tryggt kvar i inkorgen.`, k.id);
+    k.place = 'arkiv'; k.status = 'kvitto klart'; k.intakeId = k.id;
+    return ok(s, `${k.id} flyttat till arkivet under ${k.entity}. Alla ${k.files.length} filer och ${k.sources.length} källor följde med.`, k.id);
+  }
+  return refuse(s, 'Okänd åtgärd.');
+}
+
+function fmt(x, cur) {
+  if (x === null || x === undefined) return '';
+  const neg = x < 0, [i, d] = Math.abs(x).toFixed(2).split('.');
+  return (neg ? '-' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ',' + d + ' ' + cur;
+}
+
+function pageFor(k) {
+  const q = v => (v === null || v === undefined || v === '') ? '' : String(v);
+  const L = ['---'];
+  const put = (key, v) => L.push(`${key}: ${q(v)}`.trimEnd());
+  put('type', k.place === 'arkiv' ? 'receipt' : 'receipt-intake');
+  put('id', k.id); put('status', k.status);
+  put('vendor', k.facts.vendor); put('doc_kind', k.facts.docKind); put('doc_date', k.facts.docDate);
+  put('doc_amount', k.facts.amount === null ? '' : k.facts.amount.toFixed(2)); put('doc_currency', k.facts.currency);
+  put('invoice_number', k.facts.invoice);
+  if (k.creditOf) put('credit_of', k.creditOf);
+  put('entity', k.entity || 'unknown');
+  put('amount_sek', k.amountSek === null ? '' : k.amountSek.toFixed(2) + '   # from the purchase, never converted');
+  put('purchase', k.purchase ? `${k.purchase} (${k.card})` : '');
+  L.push('owner_hints: [' + k.ownerHints.map(h => `"${h}"`).join(', ') + ']   # hints only, never decide');
+  L.push('files:'); k.files.forEach((f, i) => L.push(`  - ${f.name}   sha256 ${f.sha}...   ${i === 0 ? 'primary' : 'extra'}, ${f.role}`));
+  L.push('sources:   # append-only'); k.sources.forEach(x => L.push(`  - gmail ${x.ref} | ${x.mailbox} | ${x.received} | "${x.subject}" | ${x.part}`));
+  if (k.mergedFrom.length) put('merged_from', '[' + k.mergedFrom.join(', ') + ']');
+  if (k.flags.length) { L.push('flags:'); k.flags.forEach(f => L.push(`  - ${f.text}`)); }
+  if (k.rejectReason) put('reject_reason', k.rejectReason);
+  L.push('---', '', `# ${k.facts.vendor} ${k.facts.docDate}`, '', '## Kvittotext', '(texten som lästs ur originalet)');
+  const where = k.place === 'arkiv' ? `archive/${k.entity === 'Viseo AB' ? 'viseo' : '5555media'}/2026/` : 'archive/_inkorg/2026/';
+  return `# ${where}${k.facts.docDate}-${k.facts.vendor.toLowerCase().split(' ')[0]}-${k.id}.md\n` + L.join('\n');
+}
+
+/* ===== PAGE SHELL (throwaway) ===== */
+const find = (s, inv) => (s.kvitton.find(k => k.facts.invoice === inv) || {}).id;
+const SCENARIOS = [
+  { name:'1. Enkla vägen', desc:'Ett PDF-kvitto i SEK. Titta på att bolag och SEK-belopp är tomma tills köpet matchats.',
+    steps:[['Mejl med PDF kommer in', () => ({ type:'receive', mail:'m1' })], ['Granska kvittot', s => ({ type:'review', id:find(s, '5581') })],
+           ['Matcha mot köp P1', s => ({ type:'match', id:find(s, '5581'), purchase:'P1' })], ['Flytta till arkivet', s => ({ type:'archive', id:find(s, '5581') })]] },
+  { name:'2. Samma fil i flera mejl', desc:'Samma PDF kommer först till viseo, sedan vidarebefordrad till 5555-brevlådan, och en tredje gång efter arkivering. Det ska bli ett kvitto med flera källor, aldrig två kvitton.',
+    steps:[['Originalmejlet kommer in', () => ({ type:'receive', mail:'m1' })], ['Vidarebefordrad kopia kommer in', () => ({ type:'receive', mail:'m2' })],
+           ['Granska', s => ({ type:'review', id:find(s, '5581') })], ['Matcha mot P1', s => ({ type:'match', id:find(s, '5581'), purchase:'P1' })],
+           ['Arkivera', s => ({ type:'archive', id:find(s, '5581') })], ['Samma vidarebefordran läses in igen', () => ({ type:'receive', mail:'m2' })]] },
+  { name:'3. HTML-kvitto och senare PDF', desc:'Kvittot finns först bara som mejlets HTML. Dagen efter kommer samma faktura som PDF: annan fil, samma fakturanummer. Den flaggas, slås ihop av någon som tittat, och båda filerna behålls.',
+    steps:[['HTML-mejlet kommer in', () => ({ type:'receive', mail:'m3' })], ['PDF med samma fakturanummer kommer in', () => ({ type:'receive', mail:'m4' })],
+           ['Försök arkivera PDF-kvittot direkt (ska nekas)', s => ({ type:'archive', id:s.kvitton[1] && s.kvitton[1].id })],
+           ['Slå ihop dubbletten', s => ({ type:'merge', id:s.kvitton[1] && s.kvitton[1].id })]] },
+  { name:'4. Utländsk valuta', desc:'USD-kvitto utan känt SEK-belopp. SEK räknas aldrig fram; det hämtas från kortköpet.',
+    steps:[['USD-kvitto kommer in', () => ({ type:'receive', mail:'m3' })], ['Granska', s => ({ type:'review', id:find(s, 'PV-88412') })],
+           ['Försök arkivera utan köp (ska nekas)', s => ({ type:'archive', id:find(s, 'PV-88412') })],
+           ['Matcha mot P2 (24,00 USD = 262,18 SEK på kortet)', s => ({ type:'match', id:find(s, 'PV-88412'), purchase:'P2' })],
+           ['Arkivera', s => ({ type:'archive', id:find(s, 'PV-88412') })]] },
+  { name:'5. Kredit', desc:'En kreditnota är ett eget kvitto med minusbelopp som pekar på ursprungsfakturan. Den får bara matcha en kreditrad, inte det ursprungliga köpet.',
+    steps:[['Ursprungskvittot kommer in', () => ({ type:'receive', mail:'m3' })], ['Kreditnotan kommer in', () => ({ type:'receive', mail:'m5' })],
+           ['Granska kreditnotan', s => ({ type:'review', id:find(s, 'PV-88412-CR') })],
+           ['Försök matcha krediten mot köpet P2 (ska nekas)', s => ({ type:'match', id:find(s, 'PV-88412-CR'), purchase:'P2' })],
+           ['Matcha mot kreditraden P3', s => ({ type:'match', id:find(s, 'PV-88412-CR'), purchase:'P3' })]] },
+  { name:'6. Okänt bolag', desc:'Kvittot saknar köparnamn och kom till viseo-brevlådan, men köpet ligger på 5555 Media. Bolaget sätts av köpet; brevlådan är bara en ledtråd och avvikelsen blir en punkt på listan.',
+    steps:[['Kvitto utan köparnamn kommer in', () => ({ type:'receive', mail:'m6' })], ['Granska', s => ({ type:'review', id:find(s, '7731') })],
+           ['Matcha mot P4 (5555 Media)', s => ({ type:'match', id:find(s, '7731'), purchase:'P4' })], ['Arkivera', s => ({ type:'archive', id:find(s, '7731') })]] },
+  { name:'7. Inget kvitto', desc:'En månadsrapport med PDF fångas av insamlingen. Den avvisas men raderas inte.',
+    steps:[['Rapportmejlet kommer in', () => ({ type:'receive', mail:'m7' })], ['Försök granska (ska nekas)', s => ({ type:'review', id:s.kvitton[0] && s.kvitton[0].id })],
+           ['Avvisa', s => ({ type:'reject', id:s.kvitton[0] && s.kvitton[0].id, reason:'inget kvitto' })]] },
+];
+
+let state = initialState(), selected = null, sc = 0, step = 0;
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
+function dispatch(a) { state = reduce(state, a); if (state.touched) selected = state.touched; render(); }
+
+function kvittoCard(k) {
+  const tags = [`<span class="tag ${k.status === 'kvitto klart' ? 'ok' : k.status === 'avvisat' ? 'warn' : ''}">${k.status}</span>`]
+    .concat(k.flags.map(f => `<span class="tag warn">${f.kind}</span>`)).join('');
+  const cands = state.purchases.map(p => `<option value="${p.id}">${p.id} ${p.merchant} ${fmt(p.amount, p.currency)}</option>`).join('');
+  const inInbox = k.place === 'inkorg';
+  return `<div class="card ${k.id === selected ? 'sel' : ''} ${k.id === state.touched ? 'new' : ''}" data-sel="${k.id}">
+    <h3>${k.id} · ${esc(k.facts.vendor)} ${tags}</h3>
+    <dl><dt>På dokumentet</dt><dd>${k.facts.amount === null ? 'inget belopp' : fmt(k.facts.amount, k.facts.currency)}, ${k.facts.docDate}, ${k.facts.docKind}${k.facts.invoice ? ', nr ' + esc(k.facts.invoice) : ''}</dd>
+      <dt>Bolag</dt><dd>${k.entity || '<span class="mute">okänt</span>'}</dd>
+      <dt>Belopp i SEK</dt><dd>${k.amountSek === null ? '<span class="mute">okänt tills köp matchar</span>' : fmt(k.amountSek, 'SEK')}</dd>
+      <dt>Köp</dt><dd>${k.purchase ? k.purchase + ' (' + k.card + ')' : '<span class="mute">inget</span>'}</dd>
+      ${k.creditOf ? `<dt>Krediterar</dt><dd>${esc(k.creditOf)}</dd>` : ''}
+      <dt>Ledtrådar</dt><dd class="small">${k.ownerHints.map(esc).join('; ') || 'inga'}</dd>
+      <dt>Filer (${k.files.length})</dt><dd class="small">${k.files.map((f, i) => esc(f.name) + (i === 0 ? ' (primär)' : '')).join('<br>')}</dd>
+      <dt>Källor (${k.sources.length})</dt><dd class="small">${k.sources.map(x => `${x.ref} i ${x.mailbox}, ${x.received}`).join('<br>')}</dd></dl>
+    ${k.flags.map(f => `<div class="small" style="color:var(--bad)">${esc(f.text)}</div>`).join('')}
+    ${inInbox && k.status !== 'avvisat' ? `<div>
+      <button data-act="review" data-id="${k.id}">Granska</button>
+      <select data-pick="${k.id}">${cands}</select><button data-act="match" data-id="${k.id}">Matcha mot köp</button>
+      <button data-act="archive" data-id="${k.id}">Flytta till arkivet</button>
+      ${k.flags.some(f => f.kind === 'dubblett') ? `<button data-act="merge" data-id="${k.id}">Slå ihop dubblett</button>` : ''}
+      <button data-act="reject" data-id="${k.id}">Avvisa</button></div>` : ''}
+  </div>`;
+}
+
+function render() {
+  $('last').innerHTML = state.last ? `<div class="banner ${state.last.ok ? 'ok' : 'bad'}"><b>${state.last.ok ? 'Hände' : 'Nekades'}:</b> ${esc(state.last.msg)}</div>` : '';
+  $('tabs').innerHTML = SCENARIOS.map((x, i) => `<button class="${i === sc ? 'on' : ''}" data-tab="${i}">${x.name}</button>`).join('');
+  $('scDesc').textContent = SCENARIOS[sc].desc;
+  $('steps').innerHTML = `<button data-start="1">Börja om det här fallet</button>` + SCENARIOS[sc].steps.map((st, i) =>
+    `<button class="${i < step ? 'done' : i === step ? 'next primary' : ''}" data-step="${i}" ${i !== step ? 'disabled' : ''}>${i + 1}. ${st[0]}</button>`).join('');
+  $('mails').innerHTML = Object.entries(MAILS).map(([id, m]) => `<button data-mail="${id}">${esc(m.label)}</button>`).join('');
+  const inbox = state.kvitton.filter(k => k.place === 'inkorg'), arch = state.kvitton.filter(k => k.place === 'arkiv');
+  $('inbox').innerHTML = inbox.map(kvittoCard).join('') || '<p class="mute">Tom.</p>';
+  $('archive').innerHTML = arch.map(kvittoCard).join('') || '<p class="mute">Tomt.</p>';
+  $('purchases').innerHTML = state.purchases.map(p => { const k = state.kvitton.find(x => x.purchase === p.id);
+    return `<div class="card small"><b>${p.id}</b> ${p.owner}, ${p.card}, ${p.date}, ${p.merchant}: ${fmt(p.amount, p.currency)}${p.currency !== 'SEK' ? ' = ' + fmt(p.amountSek, 'SEK') : ''}
+      <span class="tag ${k ? 'ok' : ''}">${k ? 'kvitto ' + k.id : 'saknar kvitto'}</span></div>`; }).join('');
+  const k = state.kvitton.find(x => x.id === selected);
+  $('page').textContent = k ? pageFor(k) : 'Inget kvitto valt.';
+}
+
+document.addEventListener('click', e => {
+  const t = e.target, d = t.dataset;
+  if (d.mail) return dispatch({ type:'receive', mail:d.mail });
+  if (d.act === 'match') return dispatch({ type:'match', id:d.id, purchase:document.querySelector(`[data-pick="${d.id}"]`).value });
+  if (d.act) return dispatch({ type:d.act, id:d.id });
+  if (d.tab !== undefined) { sc = +d.tab; step = 0; state = initialState(); selected = null; return render(); }
+  if (d.start) { step = 0; state = initialState(); selected = null; return render(); }
+  if (d.step !== undefined) { const a = SCENARIOS[sc].steps[step][1](state); step++; return dispatch(a); }
+  if (t.id === 'reset') { state = initialState(); selected = null; step = 0; return render(); }
+  const card = t.closest('[data-sel]'); if (card && t.tagName !== 'SELECT') { selected = card.dataset.sel; render(); }
+});
+render();
+</script>
+</body>
+</html>
