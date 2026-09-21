@@ -232,6 +232,16 @@
       "note": "Kontering only; tag stays with Oscar's pending ruling on these rows."
     },
     {
+      "name": "Clas Ohlson",
+      "patterns": ["CLASOHLSON", "CLAS OHLSON"],
+      "tag": null,
+      "entity": "viseo",
+      "bas_account": "5410",
+      "konto_name": "Forbrukningsinventarier",
+      "vat_regime": "domestic25",
+      "note": "Kontering only; card default decides the tag. Swedish store, domestic VAT."
+    },
+    {
       "name": "Elgiganten",
       "patterns": ["ELGIGANTEN"],
       "tag": null,
