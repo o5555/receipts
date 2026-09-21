@@ -232,6 +232,36 @@
       "note": "Kontering only; tag stays with Oscar's pending ruling on these rows."
     },
     {
+      "name": "Elgiganten",
+      "patterns": ["ELGIGANTEN"],
+      "tag": null,
+      "entity": "viseo",
+      "bas_account": "5410",
+      "konto_name": "Forbrukningsinventarier",
+      "vat_regime": "domestic25",
+      "note": "Kontering only; card default decides the tag. Swedish store, domestic VAT."
+    },
+    {
+      "name": "Inbox When Ready",
+      "patterns": ["INBOX WHEN", "HARTREEWOR"],
+      "tag": "business",
+      "entity": "viseo",
+      "bas_account": "6540",
+      "konto_name": "IT-tjanster",
+      "vat_regime": "noneu_rc",
+      "note": "Viseo AB per Oscar 2026-09-21 (productivity tool). HartreeWorks LTD, UK; invoice made out to Viseo AB with its VAT number, no VAT charged."
+    },
+    {
+      "name": "Starlink",
+      "patterns": ["STARLINK"],
+      "tag": null,
+      "entity": "viseo",
+      "bas_account": "6230",
+      "konto_name": "Datakommunikation",
+      "vat_regime": "oss_pending",
+      "note": "Kontering only; card default decides the tag. Internet per Oscar 2026-09-21. Irish seller; Swedish VAT versus reverse charge is unverified until a receipt is in, so the row books gross and is flagged."
+    },
+    {
       "name": "Apple",
       "patterns": ["APPLE.COM/BILL"],
       "tag": null,
