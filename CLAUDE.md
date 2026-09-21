@@ -4,7 +4,7 @@ Read `README.md` first; it carries the current state, lanes, open decisions and 
 
 ## Current build direction
 
-For ongoing collection, status semantics and automation boundaries, read `docs/kvittoplanen.md` and `CONTEXT.md`. Oscar selected August 2026 as the first proof month on 2026-09-21. The private Wayfinder map is `.scratch/receipt/map.md`; tracker operations are in `docs/agents/issue-tracker.md`.
+For ongoing collection, status semantics and automation boundaries, read `docs/kvittoplanen.md` and `CONTEXT.md`. Oscar selected August 2026 as the first proof month on 2026-09-21. For Wayfinder work, read the [Receipt map](https://github.com/o5555/receipts/issues/1) and `docs/agents/issue-tracker.md`. GitHub Issues is the canonical tracker; `.scratch/receipt/` is a private historical snapshot.
 
 Oscar authorizes confidently matched receipts to be attached to existing Pleo expenses automatically, with read-back verification. For the first implementation, retain one combined approval for bookkeeping and reimbursement: Oscar explicitly prefers simplicity and accepts approving both together. Ask on uncertain matches or unresolved ownership/account/VAT rules. Source: Oscar's answers and subsequent simplicity clarification in the Codex Receipt task, 2026-09-21; durable record in OBrain `projects/pleo-api`.
 
