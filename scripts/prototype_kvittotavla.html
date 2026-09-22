@@ -2,356 +2,402 @@
 <html lang="sv">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PROTOTYP - Kvittotavlan med separata statusar</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kvittotavlan prototyp</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <!--
-  PROTOTYP, kastas. Tre varianter av Kvittotavlan på samma sida, växlas med ?variant=A|B|C
-  eller med pilarna i listen längst ner. All data är påhittad.
+  PROTOTYP, kastas. Tre varianter av Kvittotavlan på samma sida, växlas med knapparna i huvudet
+  eller ?variant=A|B|C. All data är påhittad.
   Frågan (o5555/receipts#6): visar Kvittotavlan vad som återstår och exakt vilken hjälp som behövs?
 -->
 <style>
   :root {
-    --ground:#f6f7f4; --surface:#fff; --surface-2:#eef1ed; --ink:#1c2321; --ink-2:#3c4744; --muted:#5f6b66;
-    --rule:#d8ded9; --rule-strong:#b9c3bd; --accent:#1e5c4b; --accent-soft:#e3efea;
-    --ok:#2f7a52; --ok-soft:#e2f1e7; --warn:#a86a12; --warn-soft:#f7ecd8; --crit:#b03a2e; --crit-soft:#f7e3e0;
-    --dead:#6b7570; --dead-soft:#e8ebe9; --unk:#4f5f8a; --unk-soft:#e4e8f3;
-    --shadow:0 1px 2px rgba(28,35,33,.06),0 8px 24px rgba(28,35,33,.05);
-    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    color-scheme: light;
+    --bg:#f0f2f9; --surface:#fff; --surface2:#e8ebf5; --accent:#1a56f0; --accent-dim:#dde5fd;
+    --text:#0e1326; --text2:#3d4561; --muted:#7079a0; --border:#d8ddef; --shadow:0 1px 3px rgba(18,30,80,.08);
+    --ok:#0e9f6e; --ok-bg:#d1fae5; --none:#dc2626; --none-bg:#fee2e2; --wait:#d97706; --wait-bg:#fef3c7;
+    --na:#6b7280; --na-bg:#f3f4f6; --info:#7c3aed; --info-bg:#ede9fe;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-    --ground:#111614; --surface:#181e1b; --surface-2:#1f2623; --ink:#e6ebe7; --ink-2:#c9d1cc; --muted:#98a39d;
-    --rule:#2a332e; --rule-strong:#3b4741; --accent:#6fbf9e; --accent-soft:#1c2d26;
-    --ok:#7cc79a; --ok-soft:#1b2f24; --warn:#e0a85a; --warn-soft:#33271a; --crit:#e2847a; --crit-soft:#36201d;
-    --dead:#9aa59f; --dead-soft:#242b28; --unk:#9fb0e0; --unk-soft:#1f2533;
+    color-scheme: dark;
+    --bg:#0b0f1a; --surface:#131826; --surface2:#1b2035; --accent:#5b8fff; --accent-dim:#1e2d52;
+    --text:#e0e5f6; --text2:#9aa3c7; --muted:#6872a0; --border:#242d47; --shadow:0 1px 4px rgba(0,0,0,.35);
+    --ok:#10b981; --ok-bg:#064429; --none:#f87171; --none-bg:#450a0a; --wait:#f59e0b; --wait-bg:#44300a;
+    --na:#9ca3af; --na-bg:#1f2535; --info:#a78bfa; --info-bg:#2e1f5a;
   } }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--ground); color:var(--ink); font:15px/1.5 "Instrument Sans","Helvetica Neue",Arial,sans-serif; }
-  main { max-width:1180px; margin:0 auto; padding:24px 16px 110px; }
-  h1 { font-size:26px; margin:0 0 2px; letter-spacing:-.01em; }
-  h2 { font-size:18px; margin:30px 0 10px; } h3 { font-size:15px; margin:0 0 4px; }
-  .sub { color:var(--muted); margin:0 0 14px; max-width:80ch; }
-  .tag { display:inline-block; font-size:12px; padding:1px 8px; border:1px solid var(--rule-strong); border-radius:10px; color:var(--muted); margin-right:4px; white-space:nowrap; vertical-align:middle; }
-  .tag.proto { color:var(--crit); border-color:var(--crit); }
-  .pill { display:inline-block; font-size:12px; padding:2px 9px; border-radius:10px; font-weight:600; white-space:nowrap; }
-  .p-ok { background:var(--ok-soft); color:var(--ok); } .p-none { background:var(--crit-soft); color:var(--crit); }
-  .p-na { background:var(--dead-soft); color:var(--dead); } .p-wait { background:var(--warn-soft); color:var(--warn); }
-  .p-unk { background:var(--unk-soft); color:var(--unk); }
-  .card { background:var(--surface); border:1px solid var(--rule); border-radius:8px; padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow); }
-  .card.crit { border-left:4px solid var(--crit); } .card.warn { border-left:4px solid var(--warn); } .card.info { border-left:4px solid var(--unk); }
-  .muted { color:var(--muted); } .small { font-size:13px; } .mono { font-family:var(--mono); font-size:12.5px; }
-  .amt { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
-  dl.kv { display:grid; grid-template-columns:150px 1fr; gap:3px 12px; margin:8px 0 0; font-size:14px; }
-  dl.kv dt { color:var(--muted); } dl.kv dd { margin:0; }
-  ul { margin:4px 0; padding-left:18px; }
-  button { font:inherit; padding:5px 10px; border:1px solid var(--rule-strong); background:var(--surface); color:var(--ink); border-radius:6px; cursor:pointer; }
-  button:hover { border-color:var(--accent); }
-  .help { background:var(--accent-soft); border:1px solid var(--accent); border-radius:6px; padding:8px 12px; margin-top:8px; }
-  .help b { color:var(--accent); }
-  .banner { padding:10px 14px; border-radius:8px; margin:10px 0 16px; border:1px solid var(--rule); background:var(--surface); }
-  .banner.crit { border-color:var(--crit); background:var(--crit-soft); } .banner.warn { border-color:var(--warn); background:var(--warn-soft); }
-  .banner.ok { border-color:var(--ok); background:var(--ok-soft); }
-  /* Variant B table */
-  table { width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--rule); border-radius:8px; overflow:hidden; font-size:14px; }
-  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--rule); vertical-align:top; }
-  th { background:var(--surface-2); font-weight:600; font-size:12.5px; color:var(--ink-2); text-transform:uppercase; letter-spacing:.03em; }
-  tr.month th { background:var(--surface); text-transform:none; font-size:14px; letter-spacing:0; padding-top:14px; }
-  td.cell { cursor:pointer; } td.cell:hover { background:var(--surface-2); }
-  tr.sel td { background:var(--accent-soft); }
-  .evid { font-size:12px; color:var(--muted); display:block; margin-top:2px; }
-  /* Variant C funnel */
-  .months { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
-  .step { display:grid; grid-template-columns:110px 1fr auto; gap:8px; align-items:center; padding:7px 0; border-top:1px solid var(--rule); }
-  .bar { height:10px; background:var(--surface-2); border-radius:5px; overflow:hidden; display:flex; }
-  .bar i { display:block; height:100%; } .bar .ok { background:var(--ok); } .bar .na { background:var(--dead); } .bar .none { background:var(--crit); }
-  .mcard.sel { outline:2px solid var(--accent); }
-  /* Variant A queue */
-  .owner-head { display:flex; align-items:baseline; gap:10px; margin:26px 0 8px; }
-  .owner-head h2 { margin:0; } .owner-head .n { color:var(--muted); }
-  .status-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
-  details summary { cursor:pointer; color:var(--accent); font-size:13px; margin-top:6px; }
-  /* switcher */
-  #switch { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); background:#1c2321; color:#fff; border-radius:999px; padding:8px 10px; display:flex; gap:10px; align-items:center; box-shadow:0 6px 24px rgba(0,0,0,.35); font-size:14px; z-index:9; border:2px solid #f2b705; }
-  #switch button { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.4); border-radius:999px; padding:2px 11px; }
-  #switch b { color:#f2b705; }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg:#0b0f1a; --surface:#131826; --surface2:#1b2035; --accent:#5b8fff; --accent-dim:#1e2d52;
+    --text:#e0e5f6; --text2:#9aa3c7; --muted:#6872a0; --border:#242d47; --shadow:0 1px 4px rgba(0,0,0,.35);
+    --ok:#10b981; --ok-bg:#064429; --none:#f87171; --none-bg:#450a0a; --wait:#f59e0b; --wait-bg:#44300a;
+    --na:#9ca3af; --na-bg:#1f2535; --info:#a78bfa; --info-bg:#2e1f5a;
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'DM Sans',system-ui,sans-serif; background:var(--bg); color:var(--text); font-size:14px; line-height:1.5; padding-inline:16px; }
+  a { color:var(--accent); }
+  .mono { font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; }
+
+  /* header */
+  .site-header { position:sticky; top:env(safe-area-inset-top,0px); z-index:100; background:var(--surface); border-bottom:1px solid var(--border); box-shadow:var(--shadow); margin-inline:-16px; padding-inline:16px; }
+  .header-top { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0 0; flex-wrap:wrap; max-width:980px; margin:0 auto; }
+  .site-title { font-family:'Syne',sans-serif; font-weight:800; font-size:1.15rem; letter-spacing:-.01em; white-space:nowrap; }
+  .site-title span { color:var(--accent); }
+  .count { font-family:'JetBrains Mono',monospace; font-size:.75rem; color:var(--muted); font-weight:500; background:var(--surface2); padding:3px 8px; border-radius:20px; white-space:nowrap; }
+  .filter-bar { display:flex; gap:6px; padding:10px 0 12px; overflow-x:auto; scrollbar-width:none; max-width:980px; margin:0 auto; align-items:center; }
+  .filter-bar::-webkit-scrollbar { display:none; }
+  .filter-label { font-size:.72rem; color:var(--muted); font-weight:500; white-space:nowrap; margin-right:2px; }
+  .filter-btn { font-family:inherit; font-size:.75rem; font-weight:500; padding:4px 10px; border-radius:20px; border:1.5px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; white-space:nowrap; transition:all .12s; }
+  .filter-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .filter-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .filter-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* main */
+  .main { padding-top:20px; padding-bottom:48px; max-width:980px; margin:0 auto; }
+  .intro { color:var(--text2); max-width:70ch; margin-bottom:22px; font-size:.9rem; }
+  .intro b { color:var(--text); }
+  .group { margin-bottom:30px; }
+  .group-header { display:flex; align-items:baseline; gap:10px; margin-bottom:10px; padding-bottom:8px; border-bottom:2px solid var(--accent); flex-wrap:wrap; }
+  .group-label { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; text-wrap:balance; }
+  .group-count { font-family:'JetBrains Mono',monospace; font-size:.7rem; color:var(--muted); font-weight:500; }
+  .group-note { font-size:.8rem; color:var(--muted); margin-left:auto; }
+
+  .list { display:flex; flex-direction:column; gap:2px; }
+  .row { display:grid; grid-template-columns:88px 1fr auto; gap:10px; align-items:start; padding:9px 10px; border-radius:8px; background:var(--surface); border:1px solid transparent; }
+  .row:hover { border-color:var(--border); box-shadow:var(--shadow); }
+  .row.sel { border-color:var(--accent); }
+  .row.click { cursor:pointer; }
+  .when { font-family:'JetBrains Mono',monospace; font-size:.72rem; color:var(--muted); font-weight:500; padding-top:3px; white-space:nowrap; }
+  .when .amt { display:block; color:var(--text2); margin-top:2px; }
+  .rmain { min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .name { font-size:.88rem; font-weight:500; line-height:1.4; }
+  .name small { color:var(--muted); font-weight:400; margin-left:6px; }
+  .help { font-size:.85rem; color:var(--text); }
+  .help b { color:var(--accent); font-weight:600; }
+  .meta { display:flex; gap:5px; flex-wrap:wrap; align-items:center; font-size:.72rem; color:var(--muted); }
+  .rside { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+  .pill { display:inline-block; font-size:.68rem; font-weight:600; padding:2px 8px; border-radius:20px; white-space:nowrap; line-height:1.5; }
+  .p-ok { color:var(--ok); background:var(--ok-bg); } .p-none { color:var(--none); background:var(--none-bg); }
+  .p-wait { color:var(--wait); background:var(--wait-bg); } .p-na { color:var(--na); background:var(--na-bg); }
+  .p-info { color:var(--info); background:var(--info-bg); }
+  .p-owner { color:var(--accent); background:var(--accent-dim); }
+  .stat4 { display:flex; gap:4px; flex-wrap:wrap; }
+  .stat4 .pill { font-weight:500; }
+  .stat4 .pill b { font-weight:600; }
+
+  .detail { grid-column:1 / -1; border-top:1px solid var(--border); margin-top:6px; padding-top:8px; }
+  dl { display:grid; grid-template-columns:120px 1fr; gap:4px 12px; font-size:.82rem; }
+  dt { color:var(--muted); } dd { color:var(--text2); }
+  dd ul { padding-left:16px; } dd li { margin-bottom:2px; }
+  dd .mono { font-size:.72rem; color:var(--muted); }
+  details summary { cursor:pointer; font-size:.78rem; color:var(--accent); list-style:none; }
+  details summary::before { content:'▸ '; } details[open] summary::before { content:'▾ '; }
+
+  /* month cards (C) and month bars (B header) */
+  .months { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:10px; margin-bottom:26px; }
+  .mcard { background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:12px 14px; cursor:pointer; }
+  .mcard:hover { border-color:var(--accent); } .mcard.sel { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-dim); }
+  .mtitle { font-family:'Syne',sans-serif; font-weight:700; font-size:.95rem; display:flex; align-items:center; gap:8px; }
+  .verdict { font-size:.82rem; margin:6px 0 10px; padding:7px 10px; border-radius:6px; }
+  .v-none { background:var(--none-bg); color:var(--none); } .v-wait { background:var(--wait-bg); color:var(--wait); } .v-ok { background:var(--ok-bg); color:var(--ok); }
+  .cov { font-size:.78rem; display:grid; grid-template-columns:auto 1fr; gap:3px 8px; align-items:start; margin-bottom:8px; }
+  .cov .pill { justify-self:start; }
+  .cov span.t { color:var(--text2); } .cov span.t small { color:var(--muted); display:block; }
+  .step { display:grid; grid-template-columns:82px 1fr auto; gap:8px; align-items:center; padding:5px 0; border-top:1px solid var(--border); font-size:.75rem; }
+  .bar { height:8px; background:var(--surface2); border-radius:4px; overflow:hidden; display:flex; }
+  .bar i { display:block; height:100%; } .bar .ok { background:var(--ok); } .bar .na { background:var(--na); } .bar .none { background:var(--none); } .bar .wait { background:var(--wait); }
+  .step .n { color:var(--muted); white-space:nowrap; } .step .n em { color:var(--none); font-style:normal; }
+
+  /* matrix (B) */
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse:separate; border-spacing:0 2px; font-size:.8rem; min-width:820px; }
+  th { text-align:left; font-size:.68rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:4px 10px; }
+  td { background:var(--surface); padding:8px 10px; vertical-align:top; }
+  tr.rowb td:first-child { border-radius:8px 0 0 8px; } tr.rowb td:last-child { border-radius:0 8px 8px 0; }
+  tr.rowb { cursor:pointer; } tr.rowb:hover td { background:var(--accent-dim); } tr.rowb.sel td { background:var(--accent-dim); }
+  td .src { display:block; font-size:.7rem; color:var(--muted); margin-top:3px; max-width:200px; }
+  tr.exp td { background:var(--surface); border-radius:8px; }
+
+  @media (max-width:560px) {
+    .row { grid-template-columns:1fr; } .rside { align-items:flex-start; flex-direction:row; flex-wrap:wrap; }
+    dl { grid-template-columns:1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
 </style>
 </head>
 <body>
-<main>
-<h1>Kvittotavlan <span class="tag proto">PROTOTYP, kastas</span> <span class="tag">påhittad data</span></h1>
-<p class="sub"><b>Frågan:</b> visar tavlan vad som återstår och exakt vilken hjälp som behövs? Tre varianter av samma påhittade läge, samma data.
-Fyra separata statusar per köp (kvitto klart, bokfört, ersatt, avslutat) med källa. Ingen grön status bygger på att en fil finns eller att ett löneunderlag skapats.
-Byt variant med pilarna längst ner eller tangenterna &larr; &rarr;.</p>
-<div id="view"></div>
+<header class="site-header">
+  <div class="header-top">
+    <div class="site-title">Kvitto<span>tavlan</span> <span class="count">prototyp · påhittad data</span></div>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="filter-bar" id="switch">
+    <span class="filter-label">Variant</span>
+    <button class="filter-btn" data-v="A" id="btnA">A · Att göra, per person</button>
+    <button class="filter-btn" data-v="B" id="btnB">B · Ett köp per rad</button>
+    <button class="filter-btn" data-v="C" id="btnC">C · Kan månaden stängas?</button>
+  </div>
+</header>
+
+<main class="main">
+  <p class="intro" id="intro"></p>
+  <div id="view"></div>
 </main>
 
-<div id="switch"><button id="prev">&larr;</button><span id="label"></span><button id="next">&rarr;</button></div>
-
 <script>
-/* ================= DATA (påhittad) ================= */
+/* ===== DATA (påhittad) ===== */
 const OK='ok', NONE='none', NA='na', WAIT='wait';
 const LBL = { ok:'klart', none:'ingen evidens', na:'ej tillämpligt', wait:'väntar' };
 const S = (state, source) => ({ state, source });
 
-// Månader: periodtäckning bevisas per underlag, inte av senaste köpdatum.
 const MONTHS = [
   { key:'2026-07', name:'Juli 2026',
-    coverage:[
-      { src:'Amex-faktura -61022', state:OK,  note:'radsumma 48 562,37 = betalning 2026-07-13' },
-      { src:'Pleo-export',         state:OK,  note:'export 2026-08-21 täcker 1 till 31 juli' } ],
-    closable:false },
+    coverage:[ { src:'Amex-faktura', state:OK, note:'radsumma 48 562,37 = betalning 2026-07-13' },
+               { src:'Pleo-export', state:OK, note:'export 2026-08-21 täcker 1 till 31 juli' } ] },
   { key:'2026-08', name:'Augusti 2026', proof:true,
-    coverage:[
-      { src:'Amex-faktura -61022', state:WAIT, note:'radsumma 44 228,34; ingen betalningsrad ännu, kräver septemberexporten' },
-      { src:'Pleo-export',         state:NONE, note:'export 2026-08-21 täcker bara 1 till 21 augusti; 22 till 31 saknas' } ],
-    closable:false },
+    coverage:[ { src:'Amex-faktura', state:WAIT, note:'radsumma 44 228,34, betalningen syns först i septemberexporten' },
+               { src:'Pleo-export', state:NONE, note:'export 2026-08-21 täcker bara 1 till 21 augusti' } ],
+    help:'Ladda ner Amex-exporten för september och en ny Pleo-export. Fem minuter.' },
   { key:'2026-09', name:'September 2026',
-    coverage:[
-      { src:'Amex-faktura -61022', state:NONE, note:'ingen export efter 2026-09-01' },
-      { src:'Pleo-export',         state:NONE, note:'ingen export' } ],
-    closable:false },
+    coverage:[ { src:'Amex-faktura', state:NONE, note:'ingen export efter 2026-09-01' },
+               { src:'Pleo-export', state:NONE, note:'ingen export' } ],
+    help:'Inget ännu, månaden pågår.' },
 ];
 
-// Undantag: vad saknas, försökt (metod och utfall), nästa åtgärd, ansvarig, exakt hjälp, förebyggande.
 const P = [
-  { id:'p1', month:'2026-08', date:'2026-08-05', vendor:'Nordtryck AB', amount:1249.00, card:'Amex 1022', owner:'Viseo AB', lane:'amex',
-    kvitto:S(OK,'archive/viseo/2026/2026-08-05-nordtryck-1249-00.md, matchat mot Amex AT…0111 på konto, belopp och datum'),
+  { id:'p1', month:'2026-08', date:'2026-08-05', vendor:'Nordtryck AB', amount:1249.00, card:'Amex 1022', owner:'Viseo AB',
+    kvitto:S(OK,'arkivsida 2026-08-05-nordtryck-1249-00, matchad mot Amex-raden på konto, belopp och datum'),
     bokfort:S(OK,'Fortnox verifikat A-2041, läst tillbaka 2026-09-05'),
-    ersatt:S(OK,'Fortnox lönekörning 2026-09-25, banköverföring ref 91-4471, läst från salary-transactions'),
+    ersatt:S(OK,'lönekörning 2026-09-25, bankreferens 91-4471, läst från Fortnox'),
     avslutat:S(OK,'alla tillämpliga steg verifierade') },
 
-  { id:'p2', month:'2026-08', date:'2026-08-08', vendor:'Kinto Sweden', amount:499.00, card:'Amex 1022', owner:'Viseo AB', lane:'amex',
-    kvitto:S(NONE,'inget kvitto i arkivet'),
-    bokfort:S(NONE,'ingen plan; raden stoppas tills kvittot finns'),
-    ersatt:S(NONE,'ingen betalningsreferens'),
-    avslutat:S(NONE,'kvitto saknas'),
-    exception:{ sev:'warn', owner:'Oscar', missing:'kvitto för månadsavgiften 2026-08-08, 499,00 SEK',
-      tried:[
-        ['2026-09-02','Gmail oscar@viseo.se, sökning "kinto" 30 dagar runt köpet','0 träffar med belopp 499,00'],
-        ['2026-09-02','Gmail oscar@5555.media, samma sökning','0 träffar'],
-        ['2026-09-19','Leverantörsportal my.kinto.example','inloggning kräver SMS-kod till Oscars telefon, stannade före koden'] ],
-      next:'Oscar loggar in i Kinto-appen och sparar fakturan för augusti som PDF',
-      help:'Ladda ner fakturan 2026-08-08 (499,00 SEK) från Kinto-appen och släpp den i archive/_inkorg/. Tar cirka två minuter.',
-      prevent:'Byt fakturamejl hos Kinto till oscar@viseo.se, då hamnar nästa faktura i inkorgen automatiskt.' } },
+  { id:'p2', month:'2026-08', date:'2026-08-08', vendor:'Kinto Sweden', amount:499.00, card:'Amex 1022', owner:'Viseo AB',
+    kvitto:S(NONE,'inget kvitto i arkivet'), bokfort:S(NONE,'ingen plan, raden stoppad tills kvittot finns'),
+    ersatt:S(NONE,'ingen betalningsreferens'), avslutat:S(NONE,'kvitto saknas'),
+    exc:{ sev:'wait', owner:'Oscar', missing:'kvitto för månadsavgiften 2026-08-08, 499,00 SEK',
+      tried:[ ['2026-09-02','Gmail oscar@viseo.se, sökning "kinto" 30 dagar runt köpet','0 träffar'],
+              ['2026-09-02','Gmail oscar@5555.media','0 träffar'],
+              ['2026-09-19','Kintos portal','inloggning kräver SMS-kod till din telefon, stannade där'] ],
+      next:'Oscar sparar fakturan för augusti från Kinto-appen',
+      help:'Öppna Kinto-appen, spara fakturan 2026-08-08 (499,00 SEK) som PDF och släpp den i inkorgen. Två minuter.',
+      prevent:'Byt fakturamejl hos Kinto till oscar@viseo.se, då kommer nästa faktura in av sig själv.' } },
 
-  { id:'p3', month:'2026-08', date:'2026-08-12', vendor:'Pixelverktyg Inc', amount:255.60, card:'Amex 1022', owner:'Viseo AB', lane:'amex',
-    kvitto:S(NONE,'fil finns (PV-88412.pdf) men beloppet på kvittot är 24,00 USD utan SEK-belopp; kursen läses inte fram, matchning ej verifierad'),
-    bokfort:S(NONE,'ingen plan'),
-    ersatt:S(NONE,'ingen betalningsreferens'),
-    avslutat:S(NONE,'kvitto ej verifierat'),
-    exception:{ sev:'info', owner:'Odin', missing:'verifierad matchning mellan PDF i inkorgen och Amex-raden 255,60 SEK',
-      tried:[ ['2026-09-20','Automatisk matchning konto, belopp, datum','datum och leverantör stämmer, belopp saknas i SEK på kvittot'] ],
-      next:'Odin matchar på datum, leverantör och valutabelopp mot Amex-radens originalbelopp i USD (finns i exporten) och läser tillbaka',
-      help:'Ingen hjälp behövs av Oscar just nu.',
-      prevent:'Matcharen jämför originalvaluta från Amex-exporten när kvittot är i utländsk valuta.' } },
+  { id:'p3', month:'2026-08', date:'2026-08-12', vendor:'Pixelverktyg Inc', amount:255.60, card:'Amex 1022', owner:'Viseo AB',
+    kvitto:S(NONE,'fil finns (PV-88412.pdf) men den säger 24,00 USD utan SEK-belopp, matchning ej verifierad'),
+    bokfort:S(NONE,'ingen plan'), ersatt:S(NONE,'ingen betalningsreferens'), avslutat:S(NONE,'kvitto ej verifierat'),
+    exc:{ sev:'info', owner:'Odin', missing:'verifierad matchning mellan PDF:en och Amex-raden 255,60 SEK',
+      tried:[ ['2026-09-20','automatisk matchning på konto, belopp, datum','datum och leverantör stämmer, SEK-belopp saknas på kvittot'] ],
+      next:'Odin matchar på originalbeloppet i USD från Amex-exporten och läser tillbaka',
+      help:'Ingen hjälp behövs av dig.',
+      prevent:'Matcharen jämför originalvalutan när kvittot är i utländsk valuta.' } },
 
-  { id:'p4', month:'2026-08', date:'2026-08-14', vendor:'Molnlager AB', amount:890.00, card:'Amex 1022', owner:'Viseo AB', lane:'amex',
-    kvitto:S(OK,'archive/viseo/2026/2026-08-14-molnlager-890-00.md, matchat mot Amex AT…0342'),
+  { id:'p4', month:'2026-08', date:'2026-08-14', vendor:'Molnlager AB', amount:890.00, card:'Amex 1022', owner:'Viseo AB',
+    kvitto:S(OK,'arkivsida 2026-08-14-molnlager-890-00, matchad mot Amex-raden'),
     bokfort:S(OK,'Fortnox verifikat A-2042, läst tillbaka 2026-09-05'),
-    ersatt:S(NONE,'löneunderlag skapat 2026-09-05 (salary-transaction 5512); ingen utbetalning läst från lönekörning ännu'),
+    ersatt:S(NONE,'löneunderlag skapat 2026-09-05, men ingen lönekörning som betalat ut det'),
     avslutat:S(NONE,'ersättning ej styrkt'),
-    exception:{ sev:'info', owner:'systemet', missing:'betalningsreferens för ersättningen',
-      tried:[ ['2026-09-21','Läsning av Fortnox salary-transactions och lönekörningar','underlag 5512 finns, ingen lönekörning som innehåller det'] ],
-      next:'Läs igen efter lönekörningen 2026-09-25',
-      help:'Ingen hjälp behövs. Statusen blir grön först när lönekörningen syns med referens.',
+    exc:{ sev:'info', owner:'systemet', missing:'betalningsreferens för ersättningen',
+      tried:[ ['2026-09-21','läsning av lönekörningar i Fortnox','underlaget finns, ingen körning innehåller det ännu'] ],
+      next:'läs igen efter lönekörningen 2026-09-25',
+      help:'Ingen hjälp behövs. Grönt först när lönekörningen syns med referens.',
       prevent:'Ersatt sätts aldrig av löneunderlaget, bara av en betald lönekörning.' } },
 
-  { id:'p5', month:'2026-08', date:'2026-08-19', vendor:'Bytesbolaget AB', amount:2499.00, card:'Amex 2004', owner:'Viseo AB', lane:'amex',
+  { id:'p5', month:'2026-08', date:'2026-08-19', vendor:'Bytesbolaget AB', amount:2499.00, card:'Amex 2004', owner:'Viseo AB',
     kvitto:S(NONE,'inget kvitto i arkivet'),
     bokfort:S(OK,'Pleo-utlägg exporterat till Fortnox 2026-09-01, verifikat B-772'),
-    ersatt:S(OK,'Pleo-utbetalning 2026-09-02, payout 9a1c…, 2 499,00 ingår i 4 110,00'),
-    avslutat:S(NONE,'kvitto saknas trots att pengarna är utbetalda'),
-    exception:{ sev:'warn', owner:'Oscar', missing:'kvitto för ett redan ersatt köp (ingen ny ersättning får skapas)',
-      tried:[
-        ['2026-09-03','Gmail båda brevlådorna, "bytesbolaget" och 2 499','0 träffar'],
-        ['2026-09-03','Pleo-utgiften','saknar bilaga, Pleo har inte flaggat den'] ],
-      next:'Oscar beställer kvittokopia från butiken (ordernummer okänt) och bifogar den på Pleo-utgiften',
-      help:'Mejla butiken om kvittokopia för köpet 2026-08-19 på 2 499,00 SEK, eller bekräfta att kvittot är förlorat så markeras raden som gap.',
-      prevent:'Pleo-utlägg utan bilaga stoppas i planen innan de exporteras; detta köp hann före.' } },
+    ersatt:S(OK,'Pleo-utbetalning 2026-09-02, 2 499,00 ingår i 4 110,00'),
+    avslutat:S(NONE,'kvitto saknas fast pengarna är utbetalda'),
+    exc:{ sev:'wait', owner:'Oscar', missing:'kvitto för ett redan ersatt köp. Ingen ny ersättning får skapas.',
+      tried:[ ['2026-09-03','Gmail båda brevlådorna, "bytesbolaget" och 2 499','0 träffar'],
+              ['2026-09-03','Pleo-utgiften','saknar bilaga, Pleo har inte flaggat den'] ],
+      next:'Oscar ber butiken om kvittokopia och bifogar den på Pleo-utgiften',
+      help:'Mejla butiken om kvittokopia för köpet 2026-08-19 på 2 499,00 SEK. Eller säg att kvittot är borta, då blir raden ett accepterat gap.',
+      prevent:'Pleo-utlägg utan bilaga stoppas innan de exporteras. Detta köp hann före.' } },
 
-  { id:'p6', month:'2026-08', date:'2026-08-22', vendor:'Kivra', amount:123.75, card:'Pleo', owner:'Viseo AB', lane:'pleo',
-    kvitto:S(NONE,'ingen bilaga på Pleo-utgiften'),
-    bokfort:S(NONE,'Pleo-utgiften är inte exporterad'),
-    ersatt:S(NA,'företagskort, ingen ersättning'),
-    avslutat:S(NONE,'kvitto saknas'),
-    exception:{ sev:'warn', owner:'Oscar', missing:'Kivra-kvitto 123,75 SEK',
+  { id:'p6', month:'2026-08', date:'2026-08-22', vendor:'Kivra', amount:123.75, card:'Pleo', owner:'Viseo AB',
+    kvitto:S(NONE,'ingen bilaga på Pleo-utgiften'), bokfort:S(NONE,'Pleo-utgiften är inte exporterad'),
+    ersatt:S(NA,'företagskort, ingen ersättning'), avslutat:S(NONE,'kvitto saknas'),
+    exc:{ sev:'wait', owner:'Oscar', missing:'Kivra-kvitto 123,75 SEK',
       tried:[ ['2026-09-07','Gmail','Kivra skickar inga kvitton per mejl'], ['2026-09-07','Kivra-appen','kräver BankID, kan inte göras av systemet'] ],
       next:'Oscar laddar ner kvittot i Kivra-appen',
-      help:'Öppna Kivra-appen, Kvitton, augusti, spara som PDF och släpp den i archive/_inkorg/.',
+      help:'Öppna Kivra-appen, Kvitton, augusti, spara som PDF och släpp den i inkorgen. Två minuter.',
       prevent:'Ingen känd. Nicolina vill ha kvitto för varje Kivra-rad, så det blir en punkt per månad.' } },
 
-  { id:'p7', month:'2026-08', date:'2026-08-25', vendor:'Serverhallen AB', amount:1890.00, card:'Pleo', owner:'Viseo AB', lane:'pleo',
-    kvitto:S(OK,'bifogat automatiskt 2026-08-26 från Gmail msg 18f…c2, läst tillbaka från Pleo: receipt id r-4413'),
+  { id:'p7', month:'2026-08', date:'2026-08-25', vendor:'Serverhallen AB', amount:1890.00, card:'Pleo', owner:'Viseo AB',
+    kvitto:S(OK,'bifogat automatiskt 2026-08-26 från Gmail, läst tillbaka från Pleo'),
     bokfort:S(OK,'Pleo-export till Fortnox 2026-09-01, verifikat B-770'),
-    ersatt:S(NA,'företagskort, ingen ersättning'),
-    avslutat:S(OK,'alla tillämpliga steg verifierade') },
+    ersatt:S(NA,'företagskort, ingen ersättning'), avslutat:S(OK,'alla tillämpliga steg verifierade') },
 
-  { id:'p8', month:'2026-08', date:'2026-08-27', vendor:'Sjöstugan Restaurang', amount:1420.00, card:'Amex 2004', owner:'?', lane:'amex',
+  { id:'p8', month:'2026-08', date:'2026-08-27', vendor:'Sjöstugan Restaurang', amount:1420.00, card:'Amex 2004', owner:'?',
     kvitto:S(WAIT,'väntar på tagg'), bokfort:S(WAIT,'väntar på tagg'), ersatt:S(WAIT,'väntar på tagg'), avslutat:S(WAIT,'väntar på tagg'),
-    exception:{ sev:'warn', owner:'Oscar', missing:'svar på om köpet är företag eller privat',
-      tried:[ ['2026-09-21','Regelverk för handlare','ingen regel för restauranger, privatkortet ·2004 avgör inte'] ],
+    exc:{ sev:'wait', owner:'Oscar', missing:'svar på om köpet är företag eller privat',
+      tried:[ ['2026-09-21','regler för handlare','ingen regel för restauranger, privatkortet avgör inte'] ],
       next:'Oscar svarar',
       help:'Svara "företag" eller "privat" för Sjöstugan 2026-08-27, 1 420,00 SEK. Vid företag: vilka deltog?',
-      prevent:'Ingen. Representation är alltid en fråga till Oscar.' } },
+      prevent:'Ingen. Representation är alltid en fråga till dig.' } },
 
-  { id:'p9', month:'2026-08', date:'2026-08-29', vendor:'Nätverkslänk Ltd', amount:510.00, card:'Amex 1022', owner:'Viseo AB', lane:'amex',
-    kvitto:S(OK,'archive/viseo/2026/2026-08-29-natverkslank-510-00.md, matchat mot Amex AT…0778'),
+  { id:'p9', month:'2026-08', date:'2026-08-29', vendor:'Nätverkslänk Ltd', amount:510.00, card:'Amex 1022', owner:'Viseo AB',
+    kvitto:S(OK,'arkivsida 2026-08-29-natverkslank-510-00, matchad mot Amex-raden'),
     bokfort:S(NONE,'kontering saknas: ingen regel för leverantören, raden stoppad'),
-    ersatt:S(NONE,'ingen betalningsreferens'),
-    avslutat:S(NONE,'kontering olöst'),
-    exception:{ sev:'info', owner:'Nicolina', missing:'konto och momsbehandling för utländsk internettjänst',
-      tried:[ ['2026-09-21','Kontoregler i merchant_rules','ingen träff; förslag 6230 med omvänd moms'] ],
+    ersatt:S(NONE,'ingen betalningsreferens'), avslutat:S(NONE,'kontering olöst'),
+    exc:{ sev:'info', owner:'Nicolina', missing:'konto och moms för en utländsk internettjänst',
+      tried:[ ['2026-09-21','kontoregler','ingen träff, förslag: konto 6230 med omvänd moms'] ],
       next:'Nicolina bekräftar eller ändrar förslaget',
-      help:'Oscar vidarebefordrar frågan till Nicolina: konto 6230 och omvänd moms för Nätverkslänk Ltd (Irland)?',
-      prevent:'Svaret blir en regel i merchant_rules.json och frågan kommer inte igen.' } },
+      help:'Oscar vidarebefordrar frågan: konto 6230 och omvänd moms för Nätverkslänk Ltd (Irland)?',
+      prevent:'Svaret blir en regel, frågan kommer inte igen.' } },
 
-  { id:'p10', month:'2026-07', date:'2026-07-10', vendor:'Wincher AB', amount:3570.54, card:'Amex 1022', owner:'Viseo AB', lane:'amex',
-    kvitto:S(OK,'archive/viseo/2026/2026-07-10-wincher-3570-54.md'),
-    bokfort:S(NONE,'plan för juli på hold sedan 2026-08-24, inget skrivet'),
-    ersatt:S(NONE,'ingen betalningsreferens'),
-    avslutat:S(NONE,'plan på hold'),
-    exception:{ sev:'crit', owner:'Odin', missing:'godkännande av juliplanen (bokföring och ersättning i samma batch)',
-      tried:[ ['2026-08-24','Dry-run av planen','5 verifikat, 1 löneunderlag, batchkod 7H3K'], ['2026-09-04','Granskning','planen utesluter inte redan ersatta rader, rättas före körning'] ],
-      next:'Odin rättar uteslutningen av Pleo-ersatta rader, kör om dry-run, Oscar godkänner med koden',
+  { id:'p10', month:'2026-07', date:'2026-07-10', vendor:'Wincher AB', amount:3570.54, card:'Amex 1022', owner:'Viseo AB',
+    kvitto:S(OK,'arkivsida 2026-07-10-wincher-3570-54'),
+    bokfort:S(NONE,'planen för juli är på hold sedan 2026-08-24, inget skrivet'),
+    ersatt:S(NONE,'ingen betalningsreferens'), avslutat:S(NONE,'plan på hold'),
+    exc:{ sev:'none', owner:'Odin', missing:'en rättad juliplan att godkänna (bokföring och ersättning i samma batch)',
+      tried:[ ['2026-08-24','dry-run av planen','5 verifikat, 1 löneunderlag, batchkod 7H3K'],
+              ['2026-09-04','granskning','planen utesluter inte redan ersatta rader, rättas före körning'] ],
+      next:'Odin rättar planen och kör om dry-run, sedan godkänner Oscar med ny kod',
       help:'Inget just nu. Du får en ny batchkod när planen är omkörd.',
       prevent:'Planen kontrollerar mot Pleo-utbetalningar innan den föreslår ersättning.' } },
 
-  { id:'p11', month:'2026-09', date:'2026-09-01', vendor:'Nordtryck AB', amount:640.00, card:'Amex 1022', owner:'Viseo AB', lane:'amex',
-    kvitto:S(OK,'archive/_inkorg/2026/… matchat mot Amex AT…0901'),
-    bokfort:S(NONE,'ingen plan för september; perioden saknar täckning'),
-    ersatt:S(NONE,'ingen betalningsreferens'),
-    avslutat:S(NONE,'periodtäckning saknas') },
+  { id:'p11', month:'2026-09', date:'2026-09-01', vendor:'Nordtryck AB', amount:640.00, card:'Amex 1022', owner:'Viseo AB',
+    kvitto:S(OK,'inkorgssida, matchad mot Amex-raden'),
+    bokfort:S(NONE,'ingen plan för september, perioden saknar täckning'),
+    ersatt:S(NONE,'ingen betalningsreferens'), avslutat:S(NONE,'periodtäckning saknas') },
 ];
 
-const STEPS = [['kvitto','Kvitto klart'],['bokfort','Bokfört'],['ersatt','Ersatt'],['avslutat','Avslutat']];
+const STEPS = [['kvitto','Kvitto'],['bokfort','Bokfört'],['ersatt','Ersatt'],['avslutat','Avslutat']];
 const sek = n => n.toLocaleString('sv-SE',{minimumFractionDigits:2,maximumFractionDigits:2}).replace(/ /g,' ')+' SEK';
-const pill = st => `<span class="pill p-${st.state}">${LBL[st.state]}</span>`;
+const pill = (st,label) => `<span class="pill p-${st.state}">${label?label+': ':''}${LBL[st.state]}</span>`;
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const stat4 = p => `<div class="stat4">${STEPS.map(([k,l])=>`<span class="pill p-${p[k].state}"><b>${l}</b> ${LBL[p[k].state]}</span>`).join('')}</div>`;
+const sevOrder = { none:0, wait:1, info:2 };
 
-function exceptionHtml(p, full=true) {
-  const e = p.exception; if (!e) return '';
-  return `<div class="exc">
-    <dl class="kv">
-      <dt>Vad saknas</dt><dd>${esc(e.missing)}</dd>
-      <dt>Försökt</dt><dd><ul>${e.tried.map(t=>`<li><span class="muted small">${t[0]}</span> ${esc(t[1])} <span class="muted">&rarr; ${esc(t[2])}</span></li>`).join('')}</ul></dd>
-      <dt>Nästa åtgärd</dt><dd>${esc(e.next)}</dd>
-      <dt>Ansvarig</dt><dd><b>${esc(e.owner)}</b></dd>
-      ${full?`<dt>Förebyggande</dt><dd>${esc(e.prevent)}</dd>`:''}
-    </dl>
-    <div class="help"><b>Exakt hjälp:</b> ${esc(e.help)}</div>
-  </div>`;
-}
-function coverageHtml(m) {
-  return m.coverage.map(c=>`<div>${pill(c)} <b>${esc(c.src)}</b> <span class="muted small">${esc(c.note)}</span></div>`).join('');
-}
-function monthVerdict(m) {
+function verdict(m) {
   const rows = P.filter(p=>p.month===m.key);
   const covOk = m.coverage.every(c=>c.state===OK);
   const open = rows.filter(p=>p.avslutat.state!==OK);
-  if (!covOk) return {cls:'crit', text:`Kan inte stängas: periodtäckningen är inte bevisad. ${open.length} av ${rows.length} köp är dessutom öppna.`};
-  if (open.length) return {cls:'warn', text:`Täckning bevisad. ${open.length} av ${rows.length} köp återstår innan månaden kan stängas.`};
-  return {cls:'ok', text:'Täckning bevisad och alla köp avslutade. Månaden kan stängas.'};
+  if (!covOk) return { cls:'none', short:'kan inte stängas', text:`Kan inte stängas: underlaget bevisar inte hela perioden. ${open.length} av ${rows.length} köp är dessutom öppna.` };
+  if (open.length) return { cls:'wait', short:'köp återstår', text:`Perioden är täckt. ${open.length} av ${rows.length} köp återstår.` };
+  return { cls:'ok', short:'kan stängas', text:'Perioden är täckt och alla köp är avslutade.' };
+}
+function coverage(m) {
+  return `<div class="cov">${m.coverage.map(c=>`${pill(c)}<span class="t">${esc(c.src)}<small>${esc(c.note)}</small></span>`).join('')}</div>`;
+}
+function excDetail(p) {
+  const e = p.exc; if (!e) return `<dl><dt>Källor</dt><dd>${STEPS.map(([k,l])=>`<b>${l}:</b> ${esc(p[k].source)}`).join('<br>')}</dd></dl>`;
+  return `<dl>
+    <dt>Vad saknas</dt><dd>${esc(e.missing)}</dd>
+    <dt>Försökt</dt><dd><ul>${e.tried.map(t=>`<li><span class="mono">${t[0]}</span> ${esc(t[1])}. ${esc(t[2])}.</li>`).join('')}</ul></dd>
+    <dt>Nästa steg</dt><dd>${esc(e.next)}</dd>
+    <dt>Förebyggande</dt><dd>${esc(e.prevent)}</dd>
+    <dt>Källor</dt><dd>${STEPS.map(([k,l])=>`<b>${l}:</b> ${esc(p[k].source)}`).join('<br>')}</dd>
+  </dl>`;
 }
 
-/* ================= VARIANT A: hjälpkön, sorterad på vem som måste göra något ================= */
+/* ===== A: att göra, per person ===== */
 function variantA() {
+  let h = `<div class="group"><div class="group-header"><span class="group-label">Läget per månad</span></div><div class="list">`;
+  MONTHS.forEach(m=>{ const v=verdict(m); h+=`<div class="row"><span class="when">${m.key}</span><div class="rmain"><span class="name">${m.name}${m.proof?'<small>provmånad</small>':''}</span><span class="help">${v.text}</span></div><div class="rside"><span class="pill p-${v.cls}">${v.short}</span></div></div>`; });
+  h += `</div></div>`;
   const owners = ['Oscar','Nicolina','Odin','systemet'];
-  let h = `<h2>Läget</h2>`;
-  MONTHS.forEach(m=>{ const v=monthVerdict(m); h+=`<div class="banner ${v.cls}"><b>${m.name}${m.proof?' (provmånad)':''}:</b> ${v.text}</div>`; });
-  const withExc = P.filter(p=>p.exception);
-  const oscarMin = withExc.filter(p=>p.exception.owner==='Oscar').length;
-  h += `<p class="sub">Listan nedan är allt som återstår, i ordning efter vem som måste agera. ${oscarMin} punkter kräver dig. Allt annat sköter systemet, Odin eller Nicolina och syns bara så att du vet varför en månad inte kan stängas.</p>`;
+  const withExc = P.filter(p=>p.exc);
   owners.forEach(o=>{
-    const items = withExc.filter(p=>p.exception.owner===o).sort((a,b)=>({crit:0,warn:1,info:2})[a.exception.sev]-({crit:0,warn:1,info:2})[b.exception.sev]);
+    const items = withExc.filter(p=>p.exc.owner===o).sort((a,b)=>sevOrder[a.exc.sev]-sevOrder[b.exc.sev]);
     if (!items.length) return;
-    h += `<div class="owner-head"><h2>${o==='systemet'?'Systemet väntar':o+' behöver göra'}</h2><span class="n">${items.length} ${items.length===1?'punkt':'punkter'}</span></div>`;
+    const label = o==='systemet' ? 'Systemet väntar på' : o==='Oscar' ? 'Du gör' : o+' gör';
+    h += `<div class="group"><div class="group-header"><span class="group-label">${label}</span><span class="group-count">${items.length} ${items.length===1?'punkt':'punkter'}</span>${o==='Nicolina'?'<span class="group-note">du vidarebefordrar</span>':''}</div><div class="list">`;
     items.forEach(p=>{
-      h += `<div class="card ${p.exception.sev}">
-        <h3>${esc(p.vendor)} <span class="muted">${p.date}</span> <span class="amt">${sek(p.amount)}</span> <span class="tag">${p.card}</span> <span class="tag">${esc(p.owner)}</span></h3>
-        <div class="help"><b>${o==='systemet'?'Väntar på':'Exakt hjälp'}:</b> ${esc(p.exception.help)}</div>
-        <div class="status-row">${STEPS.map(([k,l])=>`<span class="small"><span class="muted">${l}:</span> ${pill(p[k])}</span>`).join('')}</div>
-        <details><summary>Vad som prövats, nästa steg och förebyggande</summary>${exceptionHtml(p)}</details>
-      </div>`;
+      h += `<div class="row"><span class="when">${p.date}<span class="amt">${sek(p.amount)}</span></span>
+        <div class="rmain"><span class="name">${esc(p.vendor)}<small>${p.card} · ${esc(p.owner)}</small></span>
+          <span class="help"><b>${o==='systemet'?'Väntar på':'Gör'}:</b> ${esc(p.exc.help)}</span>
+          ${stat4(p)}
+          <details><summary>vad som prövats, nästa steg, källor</summary><div class="detail">${excDetail(p)}</div></details>
+        </div>
+        <div class="rside"><span class="pill p-${p.exc.sev}">${p.exc.sev==='none'?'stoppar månaden':p.exc.sev==='wait'?'väntar på dig':'ingen hjälp behövs'}</span></div></div>`;
     });
+    h += `</div></div>`;
   });
-  const done = P.filter(p=>!p.exception);
-  h += `<h2>Inget att göra</h2><p class="sub">${done.length} köp där varje status har en källa eller är ej tillämplig.</p>`;
-  done.forEach(p=> h+=`<div class="card"><h3>${esc(p.vendor)} <span class="muted">${p.date}</span> <span class="amt">${sek(p.amount)}</span></h3>
-      <div class="status-row">${STEPS.map(([k,l])=>`<span class="small"><span class="muted">${l}:</span> ${pill(p[k])}</span>`).join('')}</div>
-      <details><summary>Källor</summary><dl class="kv">${STEPS.map(([k,l])=>`<dt>${l}</dt><dd class="small">${esc(p[k].source)}</dd>`).join('')}</dl></details></div>`);
+  const done = P.filter(p=>!p.exc);
+  h += `<div class="group"><div class="group-header"><span class="group-label">Inget att göra</span><span class="group-count">${done.length} köp</span></div><div class="list">`;
+  done.forEach(p=> h+=`<div class="row"><span class="when">${p.date}<span class="amt">${sek(p.amount)}</span></span><div class="rmain"><span class="name">${esc(p.vendor)}<small>${p.card}</small></span>${stat4(p)}<details><summary>källor</summary><div class="detail">${excDetail(p)}</div></details></div><div class="rside"></div></div>`);
+  h += `</div></div>`;
   return h;
 }
 
-/* ================= VARIANT B: statusmatrisen, ett köp per rad, klicka en cell för källan ================= */
+/* ===== B: ett köp per rad ===== */
 let selB = null;
 function variantB() {
-  let h = `<p class="sub">Varje köp är en rad. Varje status visar sin källa i mindre text. Klicka en rad för undantaget. Grått betyder ej tillämpligt, rött betyder att evidens saknas, gult att raden väntar på ett svar.</p>`;
-  h += `<table><thead><tr><th>Datum</th><th>Leverantör</th><th>Belopp</th><th>Kort</th>${STEPS.map(s=>`<th>${s[1]}</th>`).join('')}<th>Ansvarig</th></tr></thead><tbody>`;
+  let h = '';
   MONTHS.slice().reverse().forEach(m=>{
-    const v = monthVerdict(m);
-    h += `<tr class="month"><th colspan="9">${m.name}${m.proof?' (provmånad)':''} <span class="pill p-${v.cls==='ok'?'ok':v.cls==='warn'?'wait':'none'}">${v.cls==='ok'?'kan stängas':v.cls==='warn'?'köp återstår':'täckning ej bevisad'}</span>
-      <div class="small" style="font-weight:400;margin-top:4px">${coverageHtml(m)}</div></th></tr>`;
+    const v = verdict(m);
+    h += `<div class="group"><div class="group-header"><span class="group-label">${m.name}${m.proof?' · provmånad':''}</span><span class="pill p-${v.cls}">${v.short}</span></div>${coverage(m)}
+      <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Leverantör</th><th>Belopp</th>${STEPS.map(s=>`<th>${s[1]}</th>`).join('')}<th>Väntar på</th></tr></thead><tbody>`;
     P.filter(p=>p.month===m.key).forEach(p=>{
-      h += `<tr data-id="${p.id}" class="${selB===p.id?'sel':''}"><td class="cell">${p.date}</td><td class="cell">${esc(p.vendor)}</td><td class="cell amt">${sek(p.amount)}</td><td class="cell small">${p.card}<br><span class="muted">${esc(p.owner)}</span></td>`;
-      STEPS.forEach(([k])=> h+=`<td class="cell">${pill(p[k])}<span class="evid">${esc(p[k].source)}</span></td>`);
-      h += `<td class="cell">${p.exception?`<b>${esc(p.exception.owner)}</b>`:'<span class="muted">ingen</span>'}</td></tr>`;
-      if (selB===p.id) h += `<tr class="sel"><td colspan="9">${p.exception?exceptionHtml(p):'<span class="muted">Inget undantag. Alla tillämpliga steg har en källa.</span>'}</td></tr>`;
+      h += `<tr class="rowb ${selB===p.id?'sel':''}" data-id="${p.id}"><td class="mono">${p.date}</td><td>${esc(p.vendor)}<span class="src">${p.card} · ${esc(p.owner)}</span></td><td class="mono">${sek(p.amount)}</td>`;
+      STEPS.forEach(([k])=> h+=`<td>${pill(p[k])}<span class="src">${esc(p[k].source)}</span></td>`);
+      h += `<td>${p.exc?`<span class="pill p-owner">${esc(p.exc.owner)}</span>`:'<span class="src">ingen</span>'}</td></tr>`;
+      if (selB===p.id) h += `<tr class="exp"><td colspan="8">${p.exc?`<p class="help" style="margin-bottom:8px"><b>Gör:</b> ${esc(p.exc.help)}</p>`:''}${excDetail(p)}</td></tr>`;
     });
+    h += `</tbody></table></div></div>`;
   });
-  h += `</tbody></table>`;
   return h;
 }
 
-/* ================= VARIANT C: månadsstängning, tratt per månad, klicka en månad för det som stoppar ================= */
+/* ===== C: kan månaden stängas? ===== */
 let selC = '2026-08';
 function variantC() {
-  let h = `<p class="sub">Fråga per månad: kan den stängas? Först måste underlaget bevisas täcka hela perioden, sedan måste varje köp ha sina tillämpliga steg verifierade. Klicka en månad för det som stoppar.</p><div class="months">`;
+  let h = `<div class="months">`;
   MONTHS.forEach(m=>{
-    const rows = P.filter(p=>p.month===m.key); const v = monthVerdict(m);
-    h += `<div class="card mcard ${selC===m.key?'sel':''}" data-m="${m.key}" style="cursor:pointer">
-      <h3>${m.name} ${m.proof?'<span class="tag">provmånad</span>':''}</h3>
-      <div class="banner ${v.cls}" style="margin:8px 0">${v.text}</div>
-      <div class="small"><b>Periodtäckning</b></div>${coverageHtml(m)}
-      <div class="small" style="margin-top:10px"><b>Köp: ${rows.length}</b>, ${sek(rows.reduce((s,p)=>s+p.amount,0))}</div>`;
+    const rows = P.filter(p=>p.month===m.key); const v = verdict(m);
+    h += `<div class="mcard ${selC===m.key?'sel':''}" data-m="${m.key}"><div class="mtitle">${m.name}${m.proof?'<span class="pill p-owner">provmånad</span>':''}</div>
+      <div class="verdict v-${v.cls}">${v.text}</div>${coverage(m)}`;
     STEPS.forEach(([k,l])=>{
-      const c = {ok:0,none:0,na:0,wait:0}; rows.forEach(p=>c[p[k].state]++);
-      const n = rows.length||1;
-      h += `<div class="step"><span class="small">${l}</span><div class="bar"><i class="ok" style="width:${c.ok/n*100}%"></i><i class="na" style="width:${c.na/n*100}%"></i><i class="none" style="width:${(c.none+c.wait)/n*100}%"></i></div>
-        <span class="small muted">${c.ok} klart${c.na?`, ${c.na} ej tillämpl.`:''}${c.none?`, <span style="color:var(--crit)">${c.none} saknar evidens</span>`:''}${c.wait?`, ${c.wait} väntar`:''}</span></div>`;
+      const c = {ok:0,none:0,na:0,wait:0}; rows.forEach(p=>c[p[k].state]++); const n = rows.length||1;
+      h += `<div class="step"><span>${l}</span><div class="bar"><i class="ok" style="width:${c.ok/n*100}%"></i><i class="na" style="width:${c.na/n*100}%"></i><i class="wait" style="width:${c.wait/n*100}%"></i><i class="none" style="width:${c.none/n*100}%"></i></div>
+        <span class="n">${c.ok} klart${c.na?`, ${c.na} ej tillämpl.`:''}${c.none?`, <em>${c.none} saknar evidens</em>`:''}${c.wait?`, ${c.wait} väntar`:''}</span></div>`;
     });
     h += `</div>`;
   });
   h += `</div>`;
   const m = MONTHS.find(x=>x.key===selC);
-  const rows = P.filter(p=>p.month===m.key);
-  h += `<h2>Det som stoppar ${m.name.toLowerCase()}</h2>`;
+  const open = P.filter(p=>p.month===m.key && p.avslutat.state!==OK);
   const cov = m.coverage.filter(c=>c.state!==OK);
-  if (cov.length) h += `<div class="card crit"><h3>Periodtäckning</h3>${coverageHtml(m)}<div class="help"><b>Exakt hjälp:</b> ${m.key==='2026-08'?'Ladda ner Amex-exporten för september (bevisar augustifakturan) och en ny Pleo-export från Export-sidan. Fem minuter.':m.key==='2026-09'?'Inget ännu, månaden pågår.':'Ingen.'}</div></div>`;
-  const open = rows.filter(p=>p.avslutat.state!==OK);
+  h += `<div class="group"><div class="group-header"><span class="group-label">Det som stoppar ${m.name.toLowerCase()}</span><span class="group-count">${cov.length+open.length} punkter</span></div><div class="list">`;
+  if (cov.length) h += `<div class="row"><span class="when">period</span><div class="rmain"><span class="name">Underlaget täcker inte hela månaden</span><span class="help"><b>Gör:</b> ${esc(m.help||'Ingen.')}</span>${coverage(m)}</div><div class="rside"><span class="pill p-none">stoppar månaden</span></div></div>`;
   open.forEach(p=>{
-    h += `<div class="card ${p.exception?p.exception.sev:'info'}"><h3>${esc(p.vendor)} <span class="muted">${p.date}</span> <span class="amt">${sek(p.amount)}</span> <span class="tag">${p.card}</span></h3>
-      <div class="status-row">${STEPS.map(([k,l])=>`<span class="small"><span class="muted">${l}:</span> ${pill(p[k])}</span>`).join('')}</div>
-      <dl class="kv">${STEPS.filter(([k])=>p[k].state!==OK).map(([k,l])=>`<dt>${l}</dt><dd class="small">${esc(p[k].source)}</dd>`).join('')}</dl>
-      ${p.exception?exceptionHtml(p):'<p class="small muted">Inget undantag registrerat: raden väntar bara på att perioden får täckning.</p>'}</div>`;
+    h += `<div class="row"><span class="when">${p.date}<span class="amt">${sek(p.amount)}</span></span><div class="rmain"><span class="name">${esc(p.vendor)}<small>${p.card} · ${esc(p.owner)}</small></span>
+      ${p.exc?`<span class="help"><b>${p.exc.owner==='Oscar'?'Gör':p.exc.owner+' gör'}:</b> ${esc(p.exc.help)}</span>`:'<span class="help">Väntar bara på att perioden får täckning.</span>'}
+      ${stat4(p)}<details><summary>vad som prövats, nästa steg, källor</summary><div class="detail">${excDetail(p)}</div></details></div>
+      <div class="rside">${p.exc?`<span class="pill p-owner">${esc(p.exc.owner)}</span>`:''}</div></div>`;
   });
-  if (!open.length && !cov.length) h += `<p class="muted">Inget.</p>`;
+  if (!cov.length && !open.length) h += `<div class="row"><span class="when"></span><div class="rmain"><span class="help">Inget.</span></div></div>`;
+  h += `</div></div>`;
   return h;
 }
 
-/* ================= SWITCHER ================= */
-const VARIANTS = [['A','Hjälpkön per ansvarig',variantA],['B','Statusmatrisen per köp',variantB],['C','Månadsstängning',variantC]];
-function current() { const v=new URLSearchParams(location.search).get('variant')||'A'; return Math.max(0,VARIANTS.findIndex(x=>x[0]===v)); }
-function go(i) { const v=VARIANTS[(i+VARIANTS.length)%VARIANTS.length][0]; const u=new URL(location); u.searchParams.set('variant',v); history.replaceState(null,'',u); render(); }
+/* ===== switcher ===== */
+const VARIANTS = { A:variantA, B:variantB, C:variantC };
+const INTRO = {
+  A:'<b>Att göra, per person.</b> Först läget per månad, sedan allt som återstår sorterat på vem som måste göra något. Varje punkt börjar med vad du ska göra.',
+  B:'<b>Ett köp per rad.</b> Fyra statusar per köp, var och en med sin källa. Grått är ej tillämpligt, rött saknar evidens, gult väntar på ett svar. Klicka en rad för detaljer.',
+  C:'<b>Kan månaden stängas?</b> Först måste underlaget täcka hela perioden, sedan måste varje köp ha sina steg verifierade. Klicka en månad för det som stoppar den.'
+};
+function current() { const v=(new URLSearchParams(location.search).get('variant')||'A').toUpperCase(); return VARIANTS[v]?v:'A'; }
+function go(v) { const u=new URL(location); u.searchParams.set('variant',v); history.replaceState(null,'',u); render(); }
 function render() {
-  const i=current(); const [k,name,fn]=VARIANTS[i];
-  document.getElementById('label').innerHTML=`<b>${k}</b> ${name} &nbsp;<span style="opacity:.7">${i+1}/${VARIANTS.length}</span>`;
-  document.getElementById('view').innerHTML=fn();
-  document.querySelectorAll('tr[data-id]').forEach(tr=>tr.onclick=()=>{ selB = selB===tr.dataset.id?null:tr.dataset.id; render(); });
+  const v = current();
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  document.getElementById('intro').innerHTML = INTRO[v];
+  const openN = P.filter(p=>p.exc).length;
+  document.getElementById('count').textContent = `${P.length} köp · ${openN} öppna`;
+  document.getElementById('view').innerHTML = VARIANTS[v]();
+  document.querySelectorAll('tr.rowb').forEach(tr=>tr.onclick=()=>{ selB = selB===tr.dataset.id?null:tr.dataset.id; render(); });
   document.querySelectorAll('.mcard').forEach(c=>c.onclick=()=>{ selC=c.dataset.m; render(); });
 }
-document.getElementById('prev').onclick=()=>go(current()-1);
-document.getElementById('next').onclick=()=>go(current()+1);
-document.addEventListener('keydown',e=>{ if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)||document.activeElement.isContentEditable) return;
-  if (e.key==='ArrowLeft') go(current()-1); if (e.key==='ArrowRight') go(current()+1); });
+document.querySelectorAll('.filter-btn').forEach(b=>b.onclick=()=>go(b.dataset.v));
+document.addEventListener('keydown',e=>{
+  if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)||document.activeElement.isContentEditable) return;
+  const order=['A','B','C'], i=order.indexOf(current());
+  if (e.key==='ArrowRight') go(order[(i+1)%3]); if (e.key==='ArrowLeft') go(order[(i+2)%3]);
+});
 render();
 </script>
 </body>
