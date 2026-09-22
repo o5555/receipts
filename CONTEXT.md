@@ -28,6 +28,9 @@ _Undvik_: Planerat, exporterbart.
 **Ersatt**: Den som lade ut pengar har fått ersättning, styrkt av en betalningsreferens.
 _Undvik_: Verifikat skapat, löneunderlag förberett.
 
+**Accepterat gap**: Ett köp vars kvitto Oscar uttryckligen förklarat oåtkomligt, med datum och motivering. Det räknas aldrig som kvitto klart men hindrar inte att månaden avslutas.
+_Undvik_: Klart, löst.
+
 **Avslutat**: Alla tillämpliga steg för köpet är verifierat klara. Ett steg som inte är tillämpligt är inte samma sak som ett steg utan känd status.
 _Undvik_: Fixad.
 
