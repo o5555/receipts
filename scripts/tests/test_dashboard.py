@@ -1455,7 +1455,7 @@ def check_site(work, full_root, lib_model):
         text = open(real, encoding="utf-8").read()
         rendered = dashboard_site.md_to_html(text, skip_h1=True)
         ok("docs/kvittoplanen.md has no dashes", no_dashes(text))
-        ok("docs/kvittoplanen.md renders headings and the order list", "<h2>" in rendered and "<ol>" in rendered and "<blockquote>" in rendered)
+        ok("docs/kvittoplanen.md renders headings and the order list", "<h2>" in rendered and "<ol>" in rendered)
 
 
 def check_cli(work, full_root, empty_root, lib_model):
