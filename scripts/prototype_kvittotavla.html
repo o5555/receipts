@@ -33,13 +33,12 @@
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:'Inter',system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); font-size:13.5px; line-height:1.5; padding-inline:16px; -webkit-font-smoothing:antialiased; }
   a { color:var(--accent); }
-  .mono { font-variant-numeric:tabular-nums; }
+  .mono { font-variant-numeric:tabular-nums; white-space:nowrap; }
 
   /* header */
   .site-header { position:sticky; top:env(safe-area-inset-top,0px); z-index:100; background:var(--bg); border-bottom:1px solid var(--border); margin-inline:-16px; padding-inline:16px; }
   .header-top { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0 0; flex-wrap:wrap; max-width:960px; margin:0 auto; }
   .site-title { font-weight:600; font-size:15px; letter-spacing:-.01em; white-space:nowrap; }
-  .site-title span { color:var(--text); }
   .count { font-size:12px; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums; }
   .filter-bar { display:flex; gap:2px; padding:10px 0 10px; overflow-x:auto; scrollbar-width:none; max-width:960px; margin:0 auto; align-items:center; }
   .filter-bar::-webkit-scrollbar { display:none; }
@@ -66,7 +65,7 @@
   .row.sel { background:var(--accent-bg); }
   .row.click { cursor:pointer; }
   .when { font-size:12px; color:var(--muted); padding-top:2px; white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .when .amt { display:block; color:var(--text2); margin-top:2px; }
+  .when .amt { display:block; color:var(--text2); margin-top:2px; white-space:nowrap; }
   .rmain { min-width:0; display:flex; flex-direction:column; gap:4px; }
   .name { font-size:13.5px; font-weight:500; line-height:1.4; }
   .name small { color:var(--muted); font-weight:400; margin-left:6px; font-size:12px; }
@@ -91,6 +90,7 @@
   dd ul { padding-left:16px; } dd li { margin-bottom:2px; }
   dd .mono { font-size:12px; color:var(--muted); }
   details summary { cursor:pointer; font-size:12px; color:var(--muted); list-style:none; }
+  details summary::-webkit-details-marker { display:none; }
   details summary:hover { color:var(--text); }
   details summary::before { content:'› '; } details[open] summary::before { content:'⌄ '; }
 
@@ -98,6 +98,7 @@
   .months { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:10px; margin-bottom:26px; }
   .mcard { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; cursor:pointer; box-shadow:var(--shadow); }
   .mcard:hover { border-color:var(--border2); } .mcard.sel { border-color:var(--accent); }
+  .mcard:focus-visible, tr.rowb:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
   .mtitle { font-weight:600; font-size:13.5px; display:flex; align-items:center; gap:8px; }
   .verdict { font-size:12.5px; margin:6px 0 10px; color:var(--text2); display:flex; gap:6px; align-items:baseline; }
   .verdict::before { content:''; width:7px; height:7px; border-radius:50%; flex:none; position:relative; top:-1px; }
@@ -117,7 +118,8 @@
   td { padding:8px; vertical-align:top; border-bottom:1px solid var(--border); }
   tr.rowb { cursor:pointer; } tr.rowb:hover td { background:var(--surface2); } tr.rowb.sel td { background:var(--accent-bg); }
   td .src { display:block; font-size:11.5px; color:var(--muted); margin-top:3px; max-width:200px; }
-  tr.exp td { background:var(--surface); }
+  tr.exp td { background:var(--surface); padding:0; }
+  .expbox { position:sticky; left:0; max-width:min(100vw - 32px, 960px); padding:10px 8px 12px; }
 
   @media (max-width:560px) {
     .row { grid-template-columns:1fr; } .rside { align-items:flex-start; flex-direction:row; flex-wrap:wrap; }
@@ -265,11 +267,16 @@ const P = [
 ];
 
 const STEPS = [['kvitto','Kvitto'],['bokfort','Bokfört'],['ersatt','Ersatt'],['avslutat','Avslutat']];
-const sek = n => n.toLocaleString('sv-SE',{minimumFractionDigits:2,maximumFractionDigits:2}).replace(/ /g,' ')+' SEK';
+const sek = n => n.toLocaleString('sv-SE',{minimumFractionDigits:2,maximumFractionDigits:2}).replace(/[\s\u00a0\u202f]/g,'\u00a0')+'\u00a0SEK';
 const pill = (st,label) => `<span class="pill p-${st.state}">${label?label+': ':''}${LBL[st.state]}</span>`;
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const stat4 = p => `<div class="stat4">${STEPS.map(([k,l])=>`<span class="pill p-${p[k].state}"><b>${l}</b> ${LBL[p[k].state]}</span>`).join('')}</div>`;
 const sevOrder = { none:0, wait:1, info:2 };
+const helpLabel = owner => owner==='Oscar' ? 'Gör' : owner==='systemet' ? 'Väntar på' : owner+' gör';
+const plural = (n, one, many) => `${n} ${n===1?one:many}`;
+/* details stay open across re-renders */
+const openDetails = new Set();
+const det = (key, summary, body) => `<details data-key="${key}"${openDetails.has(key)?' open':''}><summary>${summary}</summary><div class="detail">${body}</div></details>`;
 
 function verdict(m) {
   const rows = P.filter(p=>p.month===m.key);
@@ -304,13 +311,13 @@ function variantA() {
     const items = withExc.filter(p=>p.exc.owner===o).sort((a,b)=>sevOrder[a.exc.sev]-sevOrder[b.exc.sev]);
     if (!items.length) return;
     const label = o==='systemet' ? 'Systemet väntar på' : o==='Oscar' ? 'Du gör' : o+' gör';
-    h += `<div class="group"><div class="group-header"><span class="group-label">${label}</span><span class="group-count">${items.length} ${items.length===1?'punkt':'punkter'}</span>${o==='Nicolina'?'<span class="group-note">du vidarebefordrar</span>':''}</div><div class="list">`;
+    h += `<div class="group"><div class="group-header"><span class="group-label">${label}</span><span class="group-count">${plural(items.length, 'punkt', 'punkter')}</span>${o==='Nicolina'?'<span class="group-note">du vidarebefordrar</span>':''}</div><div class="list">`;
     items.forEach(p=>{
       h += `<div class="row"><span class="when">${p.date}<span class="amt">${sek(p.amount)}</span></span>
         <div class="rmain"><span class="name">${esc(p.vendor)}<small>${p.card} · ${esc(p.owner)}</small></span>
-          <span class="help"><b>${o==='systemet'?'Väntar på':'Gör'}:</b> ${esc(p.exc.help)}</span>
+          <span class="help"><b>${helpLabel(o)}:</b> ${esc(p.exc.help)}</span>
           ${stat4(p)}
-          <details><summary>vad som prövats, nästa steg, källor</summary><div class="detail">${excDetail(p)}</div></details>
+          ${det(p.id, 'vad som prövats, nästa steg, källor', excDetail(p))}
         </div>
         <div class="rside"><span class="pill p-${p.exc.sev}">${p.exc.sev==='none'?'stoppar månaden':p.exc.sev==='wait'?'väntar på dig':'ingen hjälp behövs'}</span></div></div>`;
     });
@@ -318,7 +325,7 @@ function variantA() {
   });
   const done = P.filter(p=>!p.exc);
   h += `<div class="group"><div class="group-header"><span class="group-label">Inget att göra</span><span class="group-count">${done.length} köp</span></div><div class="list">`;
-  done.forEach(p=> h+=`<div class="row"><span class="when">${p.date}<span class="amt">${sek(p.amount)}</span></span><div class="rmain"><span class="name">${esc(p.vendor)}<small>${p.card}</small></span>${stat4(p)}<details><summary>källor</summary><div class="detail">${excDetail(p)}</div></details></div><div class="rside"></div></div>`);
+  done.forEach(p=> h+=`<div class="row"><span class="when">${p.date}<span class="amt">${sek(p.amount)}</span></span><div class="rmain"><span class="name">${esc(p.vendor)}<small>${p.card}</small></span>${stat4(p)}${det(p.id, 'källor', excDetail(p))}</div><div class="rside"></div></div>`);
   h += `</div></div>`;
   return h;
 }
@@ -332,10 +339,10 @@ function variantB() {
     h += `<div class="group"><div class="group-header"><span class="group-label">${m.name}${m.proof?' · provmånad':''}</span><span class="pill p-${v.cls}">${v.short}</span></div>${coverage(m)}
       <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Leverantör</th><th>Belopp</th>${STEPS.map(s=>`<th>${s[1]}</th>`).join('')}<th>Väntar på</th></tr></thead><tbody>`;
     P.filter(p=>p.month===m.key).forEach(p=>{
-      h += `<tr class="rowb ${selB===p.id?'sel':''}" data-id="${p.id}"><td class="mono">${p.date}</td><td>${esc(p.vendor)}<span class="src">${p.card} · ${esc(p.owner)}</span></td><td class="mono">${sek(p.amount)}</td>`;
+      h += `<tr class="rowb ${selB===p.id?'sel':''}" data-id="${p.id}" tabindex="0" aria-expanded="${selB===p.id}"><td class="mono">${p.date}</td><td>${esc(p.vendor)}<span class="src">${p.card} · ${esc(p.owner)}</span></td><td class="mono">${sek(p.amount)}</td>`;
       STEPS.forEach(([k])=> h+=`<td>${pill(p[k])}<span class="src">${esc(p[k].source)}</span></td>`);
       h += `<td>${p.exc?`<span class="pill p-owner">${esc(p.exc.owner)}</span>`:'<span class="src">ingen</span>'}</td></tr>`;
-      if (selB===p.id) h += `<tr class="exp"><td colspan="8">${p.exc?`<p class="help" style="margin-bottom:8px"><b>Gör:</b> ${esc(p.exc.help)}</p>`:''}${excDetail(p)}</td></tr>`;
+      if (selB===p.id) h += `<tr class="exp"><td colspan="8"><div class="expbox">${p.exc?`<p class="help" style="margin-bottom:8px"><b>${helpLabel(p.exc.owner)}:</b> ${esc(p.exc.help)}</p>`:''}${excDetail(p)}</div></td></tr>`;
     });
     h += `</tbody></table></div></div>`;
   });
@@ -348,7 +355,7 @@ function variantC() {
   let h = `<div class="months">`;
   MONTHS.forEach(m=>{
     const rows = P.filter(p=>p.month===m.key); const v = verdict(m);
-    h += `<div class="mcard ${selC===m.key?'sel':''}" data-m="${m.key}"><div class="mtitle">${m.name}${m.proof?'<span class="pill p-owner">provmånad</span>':''}</div>
+    h += `<div class="mcard ${selC===m.key?'sel':''}" data-m="${m.key}" tabindex="0" role="button" aria-pressed="${selC===m.key}"><div class="mtitle">${m.name}${m.proof?'<span class="pill p-owner">provmånad</span>':''}</div>
       <div class="verdict v-${v.cls}">${v.text}</div>${coverage(m)}`;
     STEPS.forEach(([k,l])=>{
       const c = {ok:0,none:0,na:0,wait:0}; rows.forEach(p=>c[p[k].state]++); const n = rows.length||1;
@@ -361,12 +368,12 @@ function variantC() {
   const m = MONTHS.find(x=>x.key===selC);
   const open = P.filter(p=>p.month===m.key && p.avslutat.state!==OK);
   const cov = m.coverage.filter(c=>c.state!==OK);
-  h += `<div class="group"><div class="group-header"><span class="group-label">Det som stoppar ${m.name.toLowerCase()}</span><span class="group-count">${cov.length+open.length} punkter</span></div><div class="list">`;
+  h += `<div class="group"><div class="group-header"><span class="group-label">Det som stoppar ${m.name.toLowerCase()}</span><span class="group-count">${plural((cov.length?1:0)+open.length, 'punkt', 'punkter')}</span></div><div class="list">`;
   if (cov.length) h += `<div class="row"><span class="when">period</span><div class="rmain"><span class="name">Underlaget täcker inte hela månaden</span><span class="help"><b>Gör:</b> ${esc(m.help||'Ingen.')}</span>${coverage(m)}</div><div class="rside"><span class="pill p-none">stoppar månaden</span></div></div>`;
   open.forEach(p=>{
     h += `<div class="row"><span class="when">${p.date}<span class="amt">${sek(p.amount)}</span></span><div class="rmain"><span class="name">${esc(p.vendor)}<small>${p.card} · ${esc(p.owner)}</small></span>
-      ${p.exc?`<span class="help"><b>${p.exc.owner==='Oscar'?'Gör':p.exc.owner+' gör'}:</b> ${esc(p.exc.help)}</span>`:'<span class="help">Väntar bara på att perioden får täckning.</span>'}
-      ${stat4(p)}<details><summary>vad som prövats, nästa steg, källor</summary><div class="detail">${excDetail(p)}</div></details></div>
+      ${p.exc?`<span class="help"><b>${helpLabel(p.exc.owner)}:</b> ${esc(p.exc.help)}</span>`:'<span class="help">Väntar bara på att perioden får täckning.</span>'}
+      ${stat4(p)}${det(p.id, 'vad som prövats, nästa steg, källor', excDetail(p))}</div>
       <div class="rside">${p.exc?`<span class="pill p-owner">${esc(p.exc.owner)}</span>`:''}</div></div>`;
   });
   if (!cov.length && !open.length) h += `<div class="row"><span class="when"></span><div class="rmain"><span class="help">Inget.</span></div></div>`;
@@ -381,21 +388,35 @@ const INTRO = {
   B:'<b>Ett köp per rad.</b> Fyra statusar per köp, var och en med sin källa. Grått är ej tillämpligt, rött saknar evidens, gult väntar på ett svar. Klicka en rad för detaljer.',
   C:'<b>Kan månaden stängas?</b> Först måste underlaget täcka hela perioden, sedan måste varje köp ha sina steg verifierade. Klicka en månad för det som stoppar den.'
 };
-function current() { const v=(new URLSearchParams(location.search).get('variant')||'A').toUpperCase(); return VARIANTS[v]?v:'A'; }
-function go(v) { const u=new URL(location); u.searchParams.set('variant',v); history.replaceState(null,'',u); render(); }
+let variant = (() => { try { const v=(new URLSearchParams(location.search).get('variant')||'A').toUpperCase(); return VARIANTS[v]?v:'A'; } catch (e) { return 'A'; } })();
+function current() { return variant; }
+function go(v) {
+  variant = v;
+  try { const u=new URL(location); u.searchParams.set('variant',v); history.replaceState(null,'',u); } catch (e) { /* file: and sandboxed pages refuse URL changes */ }
+  render();
+}
+function activate(el, fn) {
+  el.onclick = fn;
+  el.onkeydown = e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); fn(); } };
+}
 function render() {
   const v = current();
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  const y = window.scrollY;
+  document.querySelectorAll('.filter-btn').forEach(b=>{ const on=b.dataset.v===v; b.classList.toggle('active',on); b.setAttribute('aria-pressed',on); });
   document.getElementById('intro').innerHTML = INTRO[v];
-  const openN = P.filter(p=>p.exc).length;
-  document.getElementById('count').textContent = `${P.length} köp · ${openN} öppna`;
+  const openN = P.filter(p=>p.avslutat.state!==OK).length;
+  document.getElementById('count').textContent = `${P.length} köp · ${openN} ej avslutade`;
   document.getElementById('view').innerHTML = VARIANTS[v]();
-  document.querySelectorAll('tr.rowb').forEach(tr=>tr.onclick=()=>{ selB = selB===tr.dataset.id?null:tr.dataset.id; render(); });
-  document.querySelectorAll('.mcard').forEach(c=>c.onclick=()=>{ selC=c.dataset.m; render(); });
+  document.querySelectorAll('tr.rowb').forEach(tr=>activate(tr, ()=>{ selB = selB===tr.dataset.id?null:tr.dataset.id; render(); }));
+  document.querySelectorAll('.mcard').forEach(c=>activate(c, ()=>{ selC=c.dataset.m; render(); }));
+  document.querySelectorAll('details[data-key]').forEach(d=>d.addEventListener('toggle', ()=>{ d.open ? openDetails.add(d.dataset.key) : openDetails.delete(d.dataset.key); }));
+  window.scrollTo(0, Math.min(y, document.documentElement.scrollHeight));
 }
 document.querySelectorAll('.filter-btn').forEach(b=>b.onclick=()=>go(b.dataset.v));
 document.addEventListener('keydown',e=>{
-  if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)||document.activeElement.isContentEditable) return;
+  if (e.altKey||e.ctrlKey||e.metaKey||e.shiftKey) return;
+  const a = document.activeElement;
+  if (a && (/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable)) return;
   const order=['A','B','C'], i=order.indexOf(current());
   if (e.key==='ArrowRight') go(order[(i+1)%3]); if (e.key==='ArrowLeft') go(order[(i+2)%3]);
 });
