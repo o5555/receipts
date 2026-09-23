@@ -761,7 +761,8 @@ def load_ledger(root):
         if not d:
             continue
         rows.append({"ref": r.get("ref") or "", "date": d, "month": d[:7], "card": r.get("card") or "",
-                     "account": r.get("account") or "", "amount_sek": r2(abs(parse_amount(r.get("amount")) or 0)),
+                     # sign kept: refunds and payments are negative and must read as such
+                     "account": r.get("account") or "", "amount_sek": r2(parse_amount(r.get("amount")) or 0),
                      "merchant": norm_ws(r.get("merchant")), "tag": (r.get("tag") or "").strip().lower(),
                      "entity": (r.get("entity") or ENTITY).strip().lower() or ENTITY,
                      "bas_account": r.get("bas_account") or "", "vat_regime": r.get("vat_regime") or "",
