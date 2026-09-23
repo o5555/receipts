@@ -101,7 +101,7 @@ BUSINESS_ROW_KEYS = ["ref", "date", "month", "merchant", "vendor", "amount_sek",
 ARCHIVE_KEYS = ["root", "pages", "total_sek", "updated", "previews", "errors", "warnings_total",
                 "warning_kinds", "warnings", "months", "status", "text_methods"]
 ARCHIVE_MONTH_KEYS = ["month", "pages", "amount_sek", "pleo", "amex", "attached", "in_pleo", "warnings"]
-STAGE_LABELS = {"no-csv": "väntar på Amex-CSV", "untagged": "otaggade rader kvar", "no-plan": "plan saknas",
+STAGE_LABELS = {"no-csv": "väntar på Amex-CSV", "untagged": "otaggade rader kvar", "no-plan": "ej uppladdat till Fortnox",
                 "planned": "plan klar, väntar på godkännande", "held": "plan på hold, avstämning pågår",
                 "partial": "delvis bokförd", "booked": "bokförd",
                 "nothing-to-book": "inget att bokföra"}
@@ -1057,7 +1057,7 @@ def check_amex(m, label, open_refs, june_plan=False):
        and not k["voucher"] and k["bas_account"] == "5410" and k["status_label"] == "kvitto saknas", k)
     s6 = br.get("ATFIX601")
     ok(f"{label} archive-only receipt counts", s6 is not None and s6["receipt"] is True and s6["archive_id"] == P6 and not s6["voucher"], s6)
-    ok(f"{label} planned row label", s6 is not None and s6["status_label"] == ("plan klar" if june_plan else "kvitto funnet, plan saknas"),
+    ok(f"{label} planned row label", s6 is not None and s6["status_label"] == ("plan klar" if june_plan else "kvitto funnet, ej uppladdat till Fortnox"),
        s6 and s6["status_label"])
     m5 = br.get("ATFIX501")
     ok(f"{label} booked row voucher", m5 is not None and re.sub(r"\s", "", str(m5["voucher"] or "")) == "A11" and m5["receipt"] is False, m5)

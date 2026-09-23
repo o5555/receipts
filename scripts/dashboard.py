@@ -94,7 +94,7 @@ STATUS_LABELS = {"open": "öppen", "refiled": "ny fil bifogad", "gone": "saknas 
 STAGE_LABELS = OrderedDict([
     ("no-csv", "väntar på Amex-CSV"),
     ("untagged", "otaggade rader kvar"),
-    ("no-plan", "plan saknas"),
+    ("no-plan", "ej uppladdat till Fortnox"),
     ("planned", "plan klar, väntar på godkännande"),
     ("held", "plan på hold, avstämning pågår"),
     ("partial", "delvis bokförd"),
@@ -982,7 +982,7 @@ def build_amex(root, ledger, needs_tag_file, needs_tag_rows, overrides, csv_cov,
         elif in_plan:
             status = "plan klar"
         else:
-            status = "kvitto funnet, plan saknas"
+            status = "kvitto funnet, ej uppladdat till Fortnox"
         business_rows.append({
             "ref": r["ref"], "date": r["date"], "month": r["month"], "merchant": r["merchant"],
             "vendor": vendor_name(r["merchant"], r["amount_sek"], "SEK"), "amount_sek": r["amount_sek"],
@@ -1038,7 +1038,7 @@ AMEX_STATE_LABELS = OrderedDict([
     ("in-pleo", "ligger i Pleo"),
     ("planned", "kvitto finns, i plan"),
     ("held", "kvitto finns, plan på hold"),
-    ("ready", "kvitto finns, plan saknas"),
+    ("ready", "kvitto finns, ej uppladdat till Fortnox"),
     ("no-receipt", "kvitto saknas"),
     ("other-entity", "annat bolag"),
     ("needs-tag", "väntar på tagg"),
@@ -1117,7 +1117,7 @@ def build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_by_ref, pai
         elif in_plan:
             state, step = "planned", "i plan, väntar på ditt godkännande"
         else:
-            state, step = "ready", "byggs in i nästa plan (month_end.py)"
+            state, step = "ready", "laddas upp till Fortnox vid nästa månadskörning, efter ditt ja"
         if state in ("planned", "held", "ready", "no-receipt") and not r["bas_account"]:
             step += "; konto saknas"
         # where we looked is only meaningful on rows that still need a receipt
