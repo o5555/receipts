@@ -1504,6 +1504,7 @@ def check_site(work, full_root, lib_model):
     ok("vercelignore allows plan.html", "!plan.html" in ignore and "!index.html" in ignore)
     index = open(os.path.join(site, "index.html"), encoding="utf-8").read()
     ok("index links to /plan", 'href="/plan"' in index and "Planen" in index)
+    ok("index has sortable table headers", "function sortRows(" in index and "data-s=" in index and "th('Belopp','amount_sek'" in index)
     plan = open(os.path.join(site, "plan.html"), encoding="utf-8").read()
     ok("plan page title", "<title>Kvittoplanen</title>" in plan and 'href="/"' in plan)
     ok("plan page carries no plaintext", "HEMLIGT-ORD" not in plan and "Rubrik två" not in plan and "Uppdaterad" not in plan)

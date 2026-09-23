@@ -144,7 +144,7 @@ h2{font-size:17px;margin:22px 0 10px}h3{font-size:14px;margin:16px 0 8px;color:v
 .chips button:hover{border-color:var(--muted);color:var(--ink)}.chips button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}.chips button b{font-weight:700}
 .tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}.tools input,.tools select{font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}.tools input{flex:1 1 260px;min-width:0;max-width:360px}
 .tools .cnt{color:var(--muted);font-size:13px;margin-left:auto}
-.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}th.num{text-align:right}th.c{text-align:center}
+.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}th.num{text-align:right}th.c{text-align:center}th[data-s]{cursor:pointer;user-select:none}th[data-s]:hover{color:var(--ink)}th.on{color:var(--ink)}th .arr{font-size:10px;margin-left:3px}
 td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}td:first-child{white-space:nowrap}td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}td.c{text-align:center}td.nw{white-space:nowrap}td.v{min-width:180px}td.st{min-width:260px}
 td .m{display:block;color:var(--muted);font-size:12px;overflow-wrap:anywhere}td .looked{margin-top:3px;max-width:420px}td .step{display:block;color:var(--ink2);font-size:13px;margin-top:3px;max-width:420px}td.c .m{white-space:nowrap}
 .yes{color:var(--good);font-weight:700}.no{color:var(--bad);font-weight:700}.na{color:var(--muted)}
@@ -166,7 +166,7 @@ const sek=v=>{if(v==null)return '';const n=Math.round(Math.abs(v)*100)/100;let [
 const MON=['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'];
 const svMonth=m=>{if(!m)return '';const [y,mm]=m.split('-');return MON[+mm-1]+' '+y};
 const plural=(n,s,p)=>n===1?s:p;
-let D=null,tab=new URLSearchParams(location.search).get('tab')||'oversikt',af={state:'',month:'',q:''},pf={state:'',month:'',q:''};
+let D=null,tab=new URLSearchParams(location.search).get('tab')||'oversikt',af={state:'',month:'',q:''},pf={state:'',month:'',q:''},as={key:'date',dir:-1},ps={key:'date',dir:-1};
 
 async function decrypt(b64,key){const raw=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));const salt=raw.slice(8,16),ct=raw.slice(16);
 const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(key),'PBKDF2',false,['deriveBits']);
@@ -215,16 +215,19 @@ function chips(rows,kind,f,order){const c={};rows.forEach(r=>c[r.state]=(c[r.sta
 return `<div class="chips"><button data-f="state" data-v="" class="${f.state?'':'on'}">Alla <b>${rows.length}</b></button>${order.filter(s=>c[s]).map(s=>`<button data-f="state" data-v="${s}" class="${f.state===s?'on':''}">${esc(D.labels[kind][s])} <b>${c[s]}</b></button>`).join('')}</div>`}
 function tools(rows,f,shown){const ms=[...new Set(rows.map(r=>(r.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
 return `<div class="tools"><input data-f="q" placeholder="Sök handlare eller belopp" value="${esc(f.q)}"><select data-f="month"><option value="">Alla månader</option>${ms.map(m=>`<option value="${m}" ${f.month===m?'selected':''}>${esc(svMonth(m))}</option>`).join('')}</select><span class="cnt">${shown} rader</span></div>`}
+function sortRows(rows,s,kind){const k=s.key,ord=Object.keys(D.labels[kind]);const v=r=>{const x=r[k];if(k==='state')return ord.indexOf(x);return x==null?'':x};
+return rows.slice().sort((a,b)=>{const x=v(a),y=v(b);let c;if(typeof x==='number'||typeof y==='number')c=(+x||0)-(+y||0);else if(typeof x==='boolean'||typeof y==='boolean')c=(x?1:0)-(y?1:0);else c=String(x).localeCompare(String(y),'sv');if(c===0)c=String(b.date||'').localeCompare(String(a.date||''));return c*s.dir})}
+function th(label,key,s,cls){const on=s.key===key;return `<th class="${cls||''}${on?' on':''}" data-s="${key}" title="Sortera">${esc(label)}<span class="arr">${on?(s.dir>0?'&#9650;':'&#9660;'):''}</span></th>`}
 function filt(rows,f){const q=f.q.toLowerCase();return rows.filter(r=>(!f.state||r.state===f.state)&&(!f.month||(r.date||'').startsWith(f.month))&&(!q||(r.vendor+' '+r.merchant+' '+r.amount_sek+' '+(r.receipt_no||'')).toLowerCase().includes(q)))}
 
 function amexView(){const A=D.amex.rows,biz=A.filter(r=>!['personal','skip','needs-tag'].includes(r.state));
 const t=[tile(biz.length,'företagsköp',sek(biz.reduce((a,r)=>a+r.amount_sek,0))),tile(biz.filter(r=>r.receipt).length+' av '+biz.length,'har kvitto',null,'good'),
 tile(A.filter(r=>r.state==='reimbursed').length,'ersatta via Pleo','får inte ersättas igen','info'),tile(A.filter(r=>r.booked).length,'bokförda i Fortnox',null,'good'),
 tile(biz.filter(r=>!r.receipt).length,'saknar kvitto',null,'bad'),tile(A.filter(r=>r.state==='needs-tag').length,'väntar på tagg',null,'warn')].join('');
-const rows=filt(A,af);const order=Object.keys(D.labels.amex);
+const rows=sortRows(filt(A,af),as,'amex');const order=Object.keys(D.labels.amex);
 const cov=`Amex-exporterna täcker till och med ${D.amex.coverage_end||'okänt datum'}.${D.amex.next_month&&!D.amex.next_month_csv_present?' CSV för '+svMonth(D.amex.next_month)+' saknas.':''}`;
 return `<div class="tiles">${t}</div><p class="sub" style="color:var(--ink2);margin:0 0 8px">${esc(cov)}</p>${months(D.amex.months,'amex')}
-<h2>Amex-köp (privata köp visas inte)</h2>${chips(A,'amex',af,order)}${tools(A,af,rows.length)}<div class="card tbl"><table><thead><tr><th>Datum</th><th>Handlare</th><th class="num">Belopp</th><th>Kort</th><th>Tagg</th><th class="c">Kvitto</th><th class="c">Ersatt</th><th class="c">Bokförd</th><th>Status och nästa steg</th></tr></thead><tbody>
+<h2>Amex-köp (privata köp visas inte)</h2>${chips(A,'amex',af,order)}${tools(A,af,rows.length)}<div class="card tbl"><table><thead><tr>${th('Datum','date',as)}${th('Handlare','vendor',as)}${th('Belopp','amount_sek',as,'num')}${th('Kort','card',as)}${th('Tagg','tag',as)}${th('Kvitto','receipt',as,'c')}${th('Ersatt','reimbursed',as,'c')}${th('Bokförd','booked',as,'c')}${th('Status och nästa steg','state',as)}</tr></thead><tbody>
 ${rows.length?rows.map(r=>{const na=['personal','skip','needs-tag'].includes(r.state);return `<tr><td>${esc(r.date)}</td><td class="v">${esc(r.vendor)}<span class="m">${esc(r.merchant)}</span></td><td class="num">${sek(r.amount_sek)}</td><td class="nw">${esc(r.card)}</td><td class="nw">${esc({business:'företag',personal:'privat',skip:'ingen','needs-tag':'?'}[r.tag]||r.tag)}${r.entity!=='viseo'?'<span class="m">'+esc(r.entity)+'</span>':''}</td><td class="c">${yn(r.receipt,na)}</td><td class="c">${yn(r.reimbursed,na)}${r.reimbursed_via==='pleo'?'<span class="m">Pleo '+esc(r.reimbursed_date||'')+'</span>':''}</td><td class="c">${yn(r.booked,na)}${r.voucher?'<span class="m">'+esc(r.voucher)+'</span>':''}</td><td class="st">${badge('amex',r.state)}<span class="step">${esc(r.step)}</span>${r.searched?'<span class="m looked">Var vi letat: '+esc(r.searched)+'</span>':''}</td></tr>`}).join(''):'<tr><td colspan="9" class="empty">Inga rader matchar.</td></tr>'}</tbody></table></div>`}
 
 function pleoView(){const P=D.pleo.rows,card=P.filter(r=>!r.payout);
@@ -232,14 +235,14 @@ const t=[tile(card.length,'kortköp i exporten',sek(card.reduce((a,r)=>a+r.amoun
 tile(P.filter(r=>r.state==='missing').length,'saknar kvitto',sek(P.filter(r=>r.state==='missing').reduce((a,r)=>a+r.amount_sek,0)),'bad'),
 tile(P.filter(r=>r.state==='flagged').length,'fel kvitto bifogat','byt ut i Pleo','bad'),tile(P.filter(r=>r.state==='corrected').length,'rättade','gammal fil ligger kvar','good'),
 tile(P.filter(r=>r.state==='exported').length,'exporterade till Fortnox',null,'good')].join('');
-const rows=filt(P,pf);const order=Object.keys(D.labels.pleo);
+const rows=sortRows(filt(P,pf),ps,'pleo');const order=Object.keys(D.labels.pleo);
 const routes=D.pleo.by_route.length?`<h3>Var kvittona finns</h3><div class="chips">${D.pleo.by_route.map(g=>`<button data-f="route" data-v="${esc(g.route)}">${esc(g.route_label)} <b>${g.count}</b> · ${sek(g.amount_sek)} · ${esc(g.owner)}</button>`).join('')}</div>`:'';
 const cov=`Pleo-export från ${D.pleo.export_date||'okänt datum'}${D.pleo.missing_live_date?', live-lista utan kvitto från '+D.pleo.missing_live_date:''}.`;
 return `<div class="tiles">${t}</div><p style="color:var(--ink2);margin:0 0 8px">${esc(cov)}</p>${months(D.pleo.months,'pleo')}
-<h2>Alla Pleo-utgifter</h2>${chips(P,'pleo',pf,order)}${routes}${tools(P,pf,rows.length)}<div class="card tbl"><table><thead><tr><th>Datum</th><th>Kvitto nr</th><th>Handlare</th><th class="num">Belopp</th><th class="c">Kvitto</th><th>Export</th><th>Status och nästa steg</th></tr></thead><tbody>
+<h2>Alla Pleo-utgifter</h2>${chips(P,'pleo',pf,order)}${routes}${tools(P,pf,rows.length)}<div class="card tbl"><table><thead><tr>${th('Datum','date',ps)}${th('Kvitto nr','receipt_no',ps)}${th('Handlare','vendor',ps)}${th('Belopp','amount_sek',ps,'num')}${th('Kvitto','has_receipt',ps,'c')}${th('Export','export_status_label',ps)}${th('Status och nästa steg','state',ps)}</tr></thead><tbody>
 ${rows.length?rows.map(r=>`<tr><td>${esc(r.date)}</td><td class="nw">${esc(r.receipt_no)}${r.source==='live'?'<span class="m">efter exporten</span>':''}</td><td class="v">${esc(r.vendor)}<span class="m">${esc(r.merchant)}${r.type&&r.type!=='Card Purchase'?' · '+esc(r.type):''}</span></td><td class="num">${sek(r.amount_sek)}</td><td class="c">${yn(r.has_receipt||r.state==='attached',r.payout)}</td><td class="nw">${esc(r.export_status_label)}</td><td class="st">${badge('pleo',r.state)}<span class="step">${esc(r.step)}</span>${r.searched?'<span class="m looked">Var vi letat: '+esc(r.searched)+'</span>':''}</td></tr>`).join(''):'<tr><td colspan="7" class="empty">Inga rader matchar.</td></tr>'}</tbody></table></div>`}
 
-function wire(){const f=tab==='amex'?af:pf;document.querySelectorAll('#view [data-f]').forEach(el=>{const k=el.dataset.f;
+function wire(){const f=tab==='amex'?af:pf;document.querySelectorAll('#view th[data-s]').forEach(h=>{h.onclick=()=>{const s=tab==='amex'?as:ps,k=h.dataset.s;if(s.key===k)s.dir=-s.dir;else{s.key=k;s.dir=(k==='date'||k==='amount_sek')?-1:1}render()}});document.querySelectorAll('#view [data-f]').forEach(el=>{const k=el.dataset.f;
 if(el.tagName==='BUTTON'){el.onclick=()=>{if(k==='route'){f.state='missing';f.q='';pf.route=el.dataset.v}else f[k]=el.dataset.v;render()}}
 else{el.oninput=()=>{f[k]=el.value;const pos=el.selectionStart;render();const n=$(`#view [data-f="${k}"]`);if(n&&n.tagName==='INPUT'){n.focus();n.setSelectionRange(pos,pos)}}}})}
 boot();
