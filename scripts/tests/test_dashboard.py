@@ -424,6 +424,35 @@ def write_activity(root, max_date_mdy):
     return write_csv(os.path.join(root, "data", "amex", "activity.csv"), ACTIVITY_COLUMNS, rows)
 
 
+def write_gmail_searches(root):
+    """gmail_match.py result files: ATFIX702 searched twice without a hit (Amex, 2026-09-07),
+    the portal row EXPN searched three times without a hit and the gmail row EXPT with one
+    candidate waiting (Pleo, 2026-09-07). An older run covers ATFIX702 too and must lose."""
+    def run(date, fmt):
+        return {"script": "gmail_match.py", "version": 2, "run_date": date, "run_at": f"{date}T12:00:00+02:00",
+                "input_format": fmt, "mailbox": "test@example.com"}
+    q = lambda kind, ids: {"kind": kind, "q": f"{kind} query", "max": 30, "ids": ids, "cached": True}
+    old = {"run": run("2026-08-21", "amex_classified"),
+           "rows": [{"row_key": "ATFIX702", "expense_id": "", "ledger": "amex", "queries": [q("merchant", 3)],
+                     "candidates": [{"message_id": "x"}], "best": "x", "route": "confirm", "confidence": "weak"}]}
+    new = {"run": run("2026-09-07", "amex_classified"),
+           "rows": [{"row_key": "ATFIX702", "expense_id": "", "ledger": "amex", "queries": [q("merchant", 0), q("amount", 0)],
+                     "candidates": [], "best": None, "route": "none", "confidence": "none"},
+                    {"row_key": "ATFIX701", "expense_id": "", "ledger": "amex", "queries": [q("vendor", 1)],
+                     "candidates": [{"message_id": "y"}], "best": "y", "route": "confirm", "confidence": "strong"}]}
+    pleo = {"run": run("2026-09-07", "pleo_missing_profile"),
+            "rows": [{"row_key": "aug28-portal", "expense_id": EXPN, "ledger": "pleo",
+                      "queries": [q("vendor", 0), q("subject", 0), q("amount", 0)], "candidates": [], "best": None},
+                     {"row_key": "aug15-test", "expense_id": EXPT, "ledger": "pleo",
+                      "queries": [q("merchant", 2), q("amount", 1)], "candidates": [{"message_id": "z"}], "best": "z",
+                      "confidence": "strong"}]}
+    write_text(os.path.join(root, "out", "gmail-matches-amex.json"), json.dumps(old))
+    os.makedirs(os.path.join(root, "out", "receipts-amex"), exist_ok=True)
+    write_text(os.path.join(root, "out", "receipts-amex", "matches-2026-07.json"), json.dumps(new))
+    write_text(os.path.join(root, "out", "gmail-matches.json"), json.dumps(pleo))
+    write_text(os.path.join(root, "out", "gmail-broken.json"), "{not json")
+
+
 def write_receipt_map(root):
     """out/receipts-amex/map-2026-07.csv: ATFIX701 points at an existing file, ATFIX702 at a
     file that does not exist."""
@@ -587,6 +616,7 @@ def make_root(work, name, second_export=False, missing="a", overrides=("ATFIX604
         write_overrides(root, overrides)
     write_activity(root, amex_max)
     receipt_701 = write_receipt_map(root)
+    write_gmail_searches(root)
     july = write_fortnox_plans(root, receipt_701, june_plan=june_plan)
     if with_archive:
         build_archive(root, july, os.path.join(work, name + "-src"))
@@ -1206,6 +1236,51 @@ def check_todo_main(m, label):
     ok(f"{label} todo text has no dashes", no_dashes(json.dumps(m["todo"], ensure_ascii=False)))
 
 
+def check_searched(m, label, html=None):
+    """Where the receipt was looked for: the newest run per row, the text, the Amex missing list,
+    the todo items and the rendered column."""
+    amex_rows = {r["ref"]: r for r in m["amex"]["rows"]}
+    r702, r701 = amex_rows.get("ATFIX702"), amex_rows.get("ATFIX701")
+    ok(f"{label} newest search wins for ATFIX702", r702 is not None and r702["searched_at"] == "2026-09-07"
+       and r702["searched"] == "Gmail 2026-09-07: 2 sökningar (handlarnamn, belopp), inga träffar", r702 and r702["searched"])
+    ok(f"{label} ATFIX702 next step after a fruitless search", r702 is not None and r702["state"] == "no-receipt"
+       and r702["step"].startswith("inte i Gmail, be leverantören om kvitto"), r702 and r702["step"])
+    ok(f"{label} a row with a receipt carries no search text", r701 is not None and r701["receipt"] and r701["searched"] is None
+       and r701["searched_at"] is None, r701)
+    unsearched = [r for r in m["amex"]["rows"] if r["tag"] == "business" and not r["receipt"] and r["ref"] != "ATFIX702"]
+    ok(f"{label} unsearched Amex rows say so", unsearched and all(r["searched"] == "inte sökt i Gmail än" and r["searched_at"] is None
+                                                                for r in unsearched), [(r["ref"], r["searched"]) for r in unsearched])
+    missing = m["amex"]["missing"]
+    ok(f"{label} amex missing list", missing and all(r["tag"] == "business" and not r["receipt"] and r["entity"] == "viseo" for r in missing)
+       and "ATFIX702" in {r["ref"] for r in missing} and "ATFIX603" not in {r["ref"] for r in missing}, [r["ref"] for r in missing])
+    live = live_rows(m)
+    n, t, k = live.get("aug28-portal"), live.get("aug15-test"), live.get("aug31-kivra")
+    ok(f"{label} pleo portal row searched", n is not None and n["searched"] == "Gmail 2026-09-07: 3 sökningar (avsändare, ämne, belopp), inga träffar"
+       and n["searched_at"] == "2026-09-07", n and n["searched"])
+    ok(f"{label} pleo candidate row", t is not None and t["searched"] == "Gmail 2026-09-07: 2 sökningar (handlarnamn, belopp), 1 kandidat, väntar på bekräftelse", t and t["searched"])
+    ok(f"{label} pleo unsearched row", k is not None and k["searched"] == "inte sökt i Gmail än" and k["searched_at"] is None, k)
+    prow = {r["receipt_no"]: r for r in m["pleo"]["rows"]}
+    ok(f"{label} pleo rows carry searched only when missing", prow.get("aug28-portal", {}).get("searched") == n["searched"] if n else False
+       and all(r["searched"] is None for r in m["pleo"]["rows"] if r["state"] != "missing"), None)
+    text = dashboard.gmail_search_text({"date": "2026-09-07", "queries": 1, "kinds": ["vendor"], "hits": 1, "candidates": 0, "best": False})
+    ok(f"{label} search text with mail read but no candidate", text == "Gmail 2026-09-07: 1 sökning (avsändare), 1 mejl läst, inget kvitto för beloppet", text)
+    text = dashboard.gmail_search_text({"date": "2026-09-07", "queries": 2, "kinds": ["merchant", "amount"], "hits": 4, "candidates": 2, "best": False})
+    ok(f"{label} search text with rejected candidates", text == "Gmail 2026-09-07: 2 sökningar (handlarnamn, belopp), 2 kandidater avvisade", text)
+    src = m["sources"]["gmail_searches"]
+    ok(f"{label} gmail source", src["state"] == "ok" and src["date"] == "2026-09-07" and src["detail"] == "4 rader sökta i test@example.com"
+       and src["path"] == "out/gmail-matches*.json", src)
+    am = todo_by_key(m, "amex-missing")
+    ok(f"{label} amex-missing todo", len(am) == 1 and am[0]["severity"] == "warn" and am[0]["link"] == "amex-saknas"
+       and "Gmail sökt för 1 av" in am[0]["detail"] and am[0]["owner"] == "systemet", am)
+    pm = todo_by_key(m, "pleo-missing:gmail")
+    ok(f"{label} pleo-missing:gmail notes the search", len(pm) == 1 and "Gmail sökt för 1 av 1, senast 2026-09-07." in pm[0]["detail"], pm)
+    if isinstance(html, str):
+        ok(f"{label} render amex-saknas", 'id="amex-saknas"' in html and "Företagsköp utan kvitto" in html and html.count("Var vi letat") >= 2)
+        ok(f"{label} render search text", "Gmail 2026-09-07: 2 sökningar (handlarnamn, belopp), inga träffar" in html
+           and "inte sökt i Gmail än" in html)
+        ok(f"{label} render gmail source", "Gmail-sökningar" in html and "4 rader sökta i test@example.com" in html)
+
+
 def check_sources_main(m, label):
     src = m["sources"]
     ok(f"{label} pleo_export ok", src["pleo_export"]["state"] == "ok" and src["pleo_export"]["date"] == NEWER
@@ -1342,7 +1417,7 @@ def check_render_empty(html, label, model):
         return
     ok(f"{label} underlag saknas", "underlag saknas" in html)
     ok(f"{label} empty todo state", "Inget att göra just nu" in html)
-    ok(f"{label} lede counts the missing sources", "Inget att göra just nu, men 7 underlag saknas." in html)
+    ok(f"{label} lede counts the missing sources", "Inget att göra just nu, men 8 underlag saknas." in html)
     ok(f"{label} archive tile is dead", 'Kvittoarkivet</span><span class="chip dead">saknas</span>' in html)
 
 
@@ -1590,6 +1665,7 @@ def main():
         check_archive(mf, "full")
         html = call("render full raises", dashboard_html.render, mf)
         check_render_main(html, "render full", mf)
+        check_searched(mf, "full", html)
         # a later today: both Pleo inputs stale, the todo says so
         ml = build(full, LATER)
         if ml is not None:

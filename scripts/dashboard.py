@@ -576,6 +576,82 @@ def load_missing_live(root, export, attached_by_expense=None):
     return out
 
 
+# ----------------------------------------------------------------------------- gmail searches
+
+GMAIL_QUERY_KINDS = OrderedDict([("vendor", "avsändare"), ("subject", "ämne"), ("merchant", "handlarnamn"), ("amount", "belopp")])
+GMAIL_NOT_SEARCHED = "inte sökt i Gmail än"
+
+
+def gmail_search_text(rec):
+    """One Swedish line for a searched row: when, how many searches of which kinds, what came of it."""
+    kinds = [GMAIL_QUERY_KINDS.get(k, k) for k in rec["kinds"]]
+    head = f"Gmail {rec['date']}: {rec['queries']} {plural(rec['queries'], 'sökning', 'sökningar')}"
+    if kinds:
+        head += " (" + ", ".join(kinds) + ")"
+    n = rec["candidates"]
+    if rec["best"]:
+        tail = f"{n} {plural(n, 'kandidat', 'kandidater')}, väntar på bekräftelse"
+    elif n:
+        tail = f"{n} {plural(n, 'kandidat avvisad', 'kandidater avvisade')}"
+    elif rec["hits"]:
+        tail = f"{rec['hits']} mejl {plural(rec['hits'], 'läst', 'lästa')}, inget kvitto för beloppet"
+    else:
+        tail = "inga träffar"
+    return f"{head}, {tail}"
+
+
+def load_gmail_searches(root):
+    """What gmail_match.py has looked for, per ledger row: the newest run that searched the row
+    wins. Keys are an Amex ref, a Pleo expense id or a Pleo receipt number. Returns {files, newest,
+    mailbox, rows, by_key}; by_key maps key -> {date, mailbox, queries, kinds, hits, candidates,
+    best, confidence, text}. Empty (files 0) without any result file."""
+    root = Path(root)
+    paths = (list(root.glob("out/gmail-matches*.json")) + list(root.glob("out/gmail-pleo-closeout-*.json"))
+             + list(root.glob("out/gmail-corrections-*.json")) + list(root.glob("out/receipts-amex/matches-*.json")))
+    out = {"files": 0, "newest": None, "mailbox": None, "rows": 0, "by_key": {}}
+    stamp = {}
+    for p in sorted(paths):
+        data = read_json(p)
+        if not isinstance(data, dict) or not isinstance(data.get("rows"), list):
+            continue
+        run = data.get("run") if isinstance(data.get("run"), dict) else {}
+        run_at = str(run.get("run_at") or "")
+        run_date = str(run.get("run_date") or run_at[:10] or mtime_date(p) or "")
+        mailbox = run.get("mailbox") or None
+        out["files"] += 1
+        if run_date and (out["newest"] is None or run_date > out["newest"]):
+            out["newest"], out["mailbox"] = run_date, mailbox or out["mailbox"]
+        for r in data["rows"]:
+            if not isinstance(r, dict):
+                continue
+            queries = [q for q in (r.get("queries") or []) if isinstance(q, dict)]
+            keys = {str(r.get(k) or "") for k in ("row_key", "expense_id")} - {""}
+            if not queries or not keys:
+                continue
+            candidates = r.get("candidates") or []
+            rec = {"date": run_date, "mailbox": mailbox, "queries": len(queries),
+                   "kinds": list(OrderedDict.fromkeys(str(q.get("kind") or "") for q in queries)),
+                   "hits": sum(int(q.get("ids") or 0) for q in queries),
+                   "candidates": len(candidates), "best": bool(r.get("best")),
+                   "confidence": r.get("confidence") or None}
+            rec["text"] = gmail_search_text(rec)
+            for k in keys:
+                if run_at >= stamp.get(k, ""):
+                    stamp[k] = run_at
+                    out["by_key"][k] = rec
+    out["rows"] = len({id(v) for v in out["by_key"].values()})  # a Pleo row sits under two keys
+    return out
+
+
+def searched_for(searches, *keys):
+    """The newest search record for any of keys, else None."""
+    by_key = (searches or {}).get("by_key") or {}
+    for k in keys:
+        if k and k in by_key:
+            return by_key[k]
+    return None
+
+
 # ----------------------------------------------------------------------------- attachment-error worklist
 
 ITEM_RE = re.compile(r"^- (\d{7})\s+(?:(\d{4}-\d{2}-\d{2})\s+)?(.+)$")
@@ -989,13 +1065,15 @@ def export_status_label(status):
     return EXPORT_STATUS_LABELS.get(st, st.lower().replace("_", " ") or "okänd")
 
 
-def build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_by_ref, paid):
+def build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_by_ref, paid, searches=None):
     """Every ledger row with what has happened to it: receipt (a file or archive page exists),
     reimbursed (a Pleo payout covered it, or a Fortnox voucher exists), booked (voucher), and
-    one state key from AMEX_STATE_LABELS with a Swedish next step. Newest first."""
+    one state key from AMEX_STATE_LABELS with a Swedish next step. searched: where the receipt
+    has been looked for (load_gmail_searches), only on rows still without one. Newest first."""
     rows = []
     for r in (ledger["rows"] if ledger else []):
         plan = plans.get(r["month"])
+        looked = searched_for(searches, r["ref"])
         rec = arc_by_ref.get(r["ref"])
         rfile = receipt_map.get(r["ref"])
         receipt = rfile is not None or rec is not None
@@ -1024,7 +1102,16 @@ def build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_by_ref, pai
             state = "other-entity"
             step = f"{archive.ENTITY_NAMES.get(r['entity'], r['entity'])}, hanteras utanför Viseo-planen"
         elif not receipt:
-            state, step = "no-receipt", "hämta kvitto (Gmail eller leverantörsportal)"
+            state = "no-receipt"
+            route, hint = route_for(r["merchant"], "Card Purchase", r["amount_sek"], None)
+            if route in ("portal", "kivra"):
+                step = f"hämta kvitto: {hint}"
+            elif looked and not looked["best"]:
+                step = "inte i Gmail, be leverantören om kvitto"
+            elif looked:
+                step = "kandidat i Gmail, väntar på bekräftelse"
+            else:
+                step = "sök kvitto i Gmail"
         elif plan and plan.get("held"):
             state, step = "held", f"planen är på hold sedan {plan['held']}, väntar på avstämning"
         elif in_plan:
@@ -1043,6 +1130,8 @@ def build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_by_ref, pai
             "reimbursed_date": pay["date"] if pay else None,
             "booked": bool(voucher), "voucher": str(voucher) if voucher else None,
             "in_pleo": r["in_pleo"], "state": state, "state_label": AMEX_STATE_LABELS[state], "step": step,
+            "searched": (looked["text"] if looked else GMAIL_NOT_SEARCHED) if not receipt else None,
+            "searched_at": looked["date"] if (looked and not receipt) else None,
         })
     rows.sort(key=lambda x: (x["date"], x["ref"]), reverse=True)
     return rows
@@ -1241,7 +1330,7 @@ def source(label, path, d, today, detail, state=None, stale_after=None):
     return {"label": label, "path": path, "date": d, "age_days": age, "detail": detail, "state": state}
 
 
-def build_sources(today, export, pleo, worklist, amex_priv, amex_sec, ledger, plans, arc_sec, arc_priv):
+def build_sources(today, export, pleo, worklist, amex_priv, amex_sec, ledger, plans, arc_sec, arc_priv, searches=None):
     s = OrderedDict()
     if export:
         n_rows, n_files = len(export["rows"]), export["files"]
@@ -1295,6 +1384,13 @@ def build_sources(today, export, pleo, worklist, amex_priv, amex_sec, ledger, pl
                                   f"{nr} {plural(nr, 'rad', 'rader')}, {biz} företag, {nt} {plural(nt, 'otaggad', 'otaggade')}")
     else:
         s["amex_ledger"] = source("Amex-ledger (klassad)", None, None, today, "underlag saknas: ingen out/amex-*.classified2.csv", "missing")
+    searches = searches or {}
+    if searches.get("files"):
+        n = searches["rows"]
+        s["gmail_searches"] = source("Gmail-sökningar", "out/gmail-matches*.json", searches["newest"], today,
+                                     f"{n} {plural(n, 'rad sökt', 'rader sökta')} i {searches['mailbox'] or 'okänd brevlåda'}")
+    else:
+        s["gmail_searches"] = source("Gmail-sökningar", None, None, today, "underlag saknas: ingen out/gmail-matches*.json", "missing")
     if plans:
         planned = sum(p["vouchers"] for p in plans.values())
         booked = sum(p["booked"] for p in plans.values())
@@ -1390,7 +1486,30 @@ def build_todo(today, sources, pleo, amex_sec, amex_priv, plans, arc_sec, arc_pr
         else:
             title = f"{route_label(g['route'])}: {n} Pleo-{plural(n, 'rad', 'rader')} utan kvitto"
             detail = ", ".join(vendors) + "." if vendors else ""
+        if g["route"] not in ("kivra", "pocket"):
+            looked = [r for r in rows if r.get("searched_at")]
+            if looked:
+                detail = (detail + " " if detail else "") + f"Gmail sökt för {len(looked)} av {n}, senast {max(r['searched_at'] for r in looked)}."
         todo.append(todo_item(f"pleo-missing:{g['route']}", "warn", g["owner"], title, detail, n, g["amount_sek"], None, "pleo-saknas"))
+    missing = amex_sec.get("missing") or []
+    fetch = [r for r in missing if r["state"] == "no-receipt"]
+    if fetch:
+        n = len(fetch)
+        counts = Counter(r["vendor"] or r["merchant"] for r in fetch)
+        looked = [r for r in fetch if r["searched_at"]]
+        detail = ", ".join(f"{v} {c}" for v, c in counts.items()) + "."
+        detail += f" Gmail sökt för {len(looked)} av {n}, senast {max(r['searched_at'] for r in looked)}." if looked else " Inte sökt i Gmail än."
+        detail += " Var vi letat och nästa steg står i tabellen."
+        owner = "systemet" if len(looked) < n else "Oscar"
+        todo.append(todo_item("amex-missing", "warn", owner, f"Hämta {n} {plural(n, 'kvitto', 'kvitton')} till Amex-köp",
+                              detail, n, sum(r["amount_sek"] or 0 for r in fetch), None, "amex-saknas"))
+    paid_no_receipt = [r for r in missing if r["state"] == "reimbursed"]
+    if paid_no_receipt:
+        n = len(paid_no_receipt)
+        counts = Counter(r["vendor"] or r["merchant"] for r in paid_no_receipt)
+        todo.append(todo_item("amex-paid-no-receipt", "info", "Oscar", f"{n} redan ersatta Amex-köp saknar kvitto",
+                              ", ".join(f"{v} {c}" for v, c in counts.items()) + ". Kvitto till Nicolina eller accepterat gap.",
+                              n, sum(r["amount_sek"] or 0 for r in paid_no_receipt), None, "amex-saknas"))
     nm = amex_sec["next_month"]
     if nm and not amex_sec["next_month_csv_present"]:
         end = month_end(nm)
@@ -1495,13 +1614,22 @@ def build_model(root=None, today=None, archive_root=None):
     export = exports[-1] if exports else None
     arc_sec, arc_priv = build_archive(archive_root, root)
     months, totals = pleo_months(export)
+    searches = load_gmail_searches(root)
     missing_live = load_missing_live(root, export, arc_priv["attached_by_expense"])
+    for r in missing_live["rows"]:
+        looked = searched_for(searches, r["expense_id"], r["receipt_no"])
+        r["searched"] = looked["text"] if looked else GMAIL_NOT_SEARCHED
+        r["searched_at"] = looked["date"] if looked else None
     attached = load_pleo_attached(root)
     flagged = load_worklist(root, exports, export, arc_priv["warn_receipts"], attached)
     pleo = {"export_dir": export["rel"] if export else None, "export_date": export["date"] if export else None,
             "months": months, "totals": totals, "missing_live": missing_live, "flagged": flagged,
             "same_file_groups_now": export["same_file_groups"] if export else [],
             "rows": build_pleo_rows(export, missing_live, flagged, attached, arc_priv["attached_by_expense"])}
+    for r in pleo["rows"]:
+        looked = searched_for(searches, r["expense_id"], r["receipt_no"]) if r["state"] == "missing" else None
+        r["searched"] = (looked["text"] if looked else GMAIL_NOT_SEARCHED) if r["state"] == "missing" else None
+        r["searched_at"] = looked["date"] if looked else None
 
     ledger = load_ledger(root)
     overrides = load_overrides(root)
@@ -1510,10 +1638,12 @@ def build_model(root=None, today=None, archive_root=None):
     receipt_map = load_receipt_maps(root)
     amex_sec, amex_priv = build_amex(root, ledger, needs_tag_file, needs_tag_rows, overrides, amex_csv_coverage(root),
                                      plans, receipt_map, arc_priv["by_ref"])
-    amex_sec["rows"] = build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_priv["by_ref"], load_paid_via_pleo(root))
+    amex_sec["rows"] = build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_priv["by_ref"], load_paid_via_pleo(root), searches)
+    # business purchases of this entity still without a receipt, whatever else has happened to them
+    amex_sec["missing"] = [r for r in amex_sec["rows"] if r["tag"] == "business" and r["entity"] == ENTITY and not r["receipt"]]
     public_plans = {m: {k: v for k, v in p.items() if not k.startswith("_")} for m, p in plans.items()}
 
-    sources = build_sources(today, export, pleo, flagged, amex_priv, amex_sec, ledger, public_plans, arc_sec, arc_priv)
+    sources = build_sources(today, export, pleo, flagged, amex_priv, amex_sec, ledger, public_plans, arc_sec, arc_priv, searches)
     summary = build_summary(pleo, amex_sec, amex_priv, public_plans, arc_sec)
     todo = build_todo(today, sources, pleo, amex_sec, amex_priv, public_plans, arc_sec, arc_priv)
     return {

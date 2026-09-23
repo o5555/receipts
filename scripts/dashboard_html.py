@@ -50,10 +50,11 @@ STAGE_CLASS = {
     "no-csv": "dead", "untagged": "warn", "no-plan": "warn",
     "planned": "unk", "partial": "warn", "booked": "ok", "nothing-to-book": "ok",
 }
-SOURCE_ORDER = ["pleo_export", "pleo_missing", "worklist", "amex_csv", "amex_ledger", "fortnox_runs", "archive"]
+SOURCE_ORDER = ["pleo_export", "pleo_missing", "worklist", "gmail_searches", "amex_csv", "amex_ledger", "fortnox_runs", "archive"]
 STEP_NAMES = ["CSV", "taggat", "kvitton", "plan", "bokfört"]
 
 EMPTY_DATA = "underlag saknas"
+NOT_SEARCHED = "inte sökt i Gmail än"
 EMPTY_TODO = "inget att göra just nu"
 
 
@@ -494,12 +495,12 @@ def render_pleo(m: Dict[str, Any]) -> str:
         # the expense id is what finds the row in Pleo
         real_numbers = all(RECEIPT_NO_RE.fullmatch(str(r.get("receipt_no") or "")) for r in live_rows)
         out.append('<div class="tablewrap"><table class="ledger">')
-        out.append('<thead><tr><th>Datum</th><th>{}</th><th>Leverantör</th><th>Belopp</th><th>Status</th><th>Var kvittot finns</th></tr></thead><tbody>'.format(
+        out.append('<thead><tr><th>Datum</th><th>{}</th><th>Leverantör</th><th>Belopp</th><th>Status</th><th>Var vi letat</th><th>Var kvittot finns</th></tr></thead><tbody>'.format(
             "Kvittonr" if real_numbers else "Id"))
         for grp in by_route:
             members = [r for r in live_rows if r.get("route") == grp.get("route")]
             n = grp.get("count") if grp.get("count") is not None else len(members)
-            out.append('<tr class="grp"><td colspan="6"><b>{}</b> {} {} {}, {}</td></tr>'.format(
+            out.append('<tr class="grp"><td colspan="7"><b>{}</b> {} {} {}, {}</td></tr>'.format(
                 esc(grp.get("route_label") or grp.get("route") or "övrigt"),
                 chip("ok", "klart") if grp.get("route") == "attached" else chip("plain", grp.get("owner") or "systemet"),
                 esc(sv_int(n)), esc(plural(n, "rad", "rader")),
@@ -516,9 +517,10 @@ def render_pleo(m: Dict[str, Any]) -> str:
                 eid = str(r.get("expense_id") or "")
                 if eid and not RECEIPT_NO_RE.fullmatch(str(r.get("receipt_no") or "")):
                     rid += '<small class="id" title="{}">{}</small>'.format(esc(eid), esc(eid[:8]))
-                out.append('<tr><td class="c">{}</td><td class="c">{}</td><td class="name">{}</td><td class="c">{}</td><td class="c">{}</td><td>{}</td></tr>'.format(
+                out.append('<tr><td class="c">{}</td><td class="c">{}</td><td class="name">{}</td><td class="c">{}</td><td class="c">{}</td><td class="looked">{}</td><td>{}</td></tr>'.format(
                     esc(r.get("date")), rid, name, amount(r.get("amount_sek")),
-                    export_chip(r.get("export_status")), esc(r.get("hint") or r.get("route_label") or "")))
+                    export_chip(r.get("export_status")), esc(r.get("searched") or NOT_SEARCHED),
+                    esc(r.get("hint") or r.get("route_label") or "")))
         out.append('</tbody></table></div>')
 
     # (c) flagged
@@ -700,6 +702,28 @@ def render_amex(m: Dict[str, Any]) -> str:
                 esc(r.get("date")), ident(r.get("ref")), esc(r.get("merchant")), amount(r.get("amount_sek")),
                 esc(r.get("card")), esc(r.get("why")),
                 chip("ok", "besvarad") if answered else chip("warn", "väntar")))
+        out.append('</tbody></table></div>')
+
+    missing = [_d(x) for x in _l(amex.get("missing"))]
+    out.append(h3("amex-saknas", "Företagsköp utan kvitto", "Var vi letat: sökningarna i Gmail. Nästa steg: var kvittot hämtas."))
+    if not amex.get("ledger_file"):
+        out.append(empty("{}: ingen klassad Amex-ledger i out/.".format(EMPTY_DATA)))
+    elif not missing:
+        out.append(empty("Alla företagsköp har kvitto."))
+    else:
+        out.append('<div class="tablewrap"><table class="ledger">')
+        out.append('<thead><tr><th>Datum</th><th>Handlare</th><th>Belopp</th><th>Kort</th><th>Status</th><th>Var vi letat</th><th>Nästa steg</th></tr></thead><tbody>')
+        for r in missing:
+            vendor = r.get("vendor") or r.get("merchant") or ""
+            merchant = r.get("merchant") or ""
+            name = esc(vendor)
+            if merchant and merchant != vendor:
+                name += '<small>{}</small>'.format(esc(merchant))
+            state = str(r.get("state") or "")
+            status = chip("crit" if state == "no-receipt" else "warn", r.get("state_label") or state)
+            out.append('<tr><td class="c">{}</td><td class="name">{}</td><td class="c">{}</td><td class="c">{}</td><td class="c">{}</td><td class="looked">{}</td><td>{}</td></tr>'.format(
+                esc(r.get("date")), name, amount(r.get("amount_sek")), esc(r.get("card")), status,
+                esc(r.get("searched") or NOT_SEARCHED), esc(r.get("step") or "")))
         out.append('</tbody></table></div>')
 
     out.append(h3("amex-foretag", "Företagsrader"))
@@ -1069,6 +1093,7 @@ CSS = """
   table.ledger tr:last-child td { border-bottom: 0; }
   table.ledger td.c { white-space: nowrap; }
   table.ledger td.name { font-weight: 600; color: var(--ink); }
+  table.ledger td.looked { font-size: 12px; color: var(--muted); min-width: 220px; }
   table.ledger td small, table.ledger td .muted.small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
   table.ledger tr.grp td { background: var(--surface-2); color: var(--ink-2); font-size: 13.5px; padding: 8px 14px; }
   table.ledger tr.grp td b { color: var(--ink); font-family: var(--display); font-size: 14.5px; margin-right: 6px; }
