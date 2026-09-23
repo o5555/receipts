@@ -1250,6 +1250,9 @@ def check_searched(m, label, html=None):
     unsearched = [r for r in m["amex"]["rows"] if r["tag"] == "business" and not r["receipt"] and r["ref"] != "ATFIX702"]
     ok(f"{label} unsearched Amex rows say so", unsearched and all(r["searched"] == "inte sökt i Gmail än" and r["searched_at"] is None
                                                                 for r in unsearched), [(r["ref"], r["searched"]) for r in unsearched])
+    quiet = [r for r in m["amex"]["rows"] if r["state"] in ("personal", "skip", "needs-tag")]
+    ok(f"{label} rows that need no receipt carry no search text", quiet and all(r["searched"] is None and r["searched_at"] is None for r in quiet),
+       [(r["ref"], r["state"], r["searched"]) for r in quiet])
     missing = m["amex"]["missing"]
     ok(f"{label} amex missing list", missing and all(r["tag"] == "business" and not r["receipt"] and r["entity"] == "viseo" for r in missing)
        and "ATFIX702" in {r["ref"] for r in missing} and "ATFIX603" not in {r["ref"] for r in missing}, [r["ref"] for r in missing])
@@ -1492,6 +1495,9 @@ def check_site(work, full_root, lib_model):
         return
     out_dir, key, model, has_plan = res
     ok("build_site has_plan", has_plan is True)
+    page_states = {r["state"] for r in dashboard_site.page_payload(model)["amex"]["rows"]}
+    ok("page payload hides private rows and payments", page_states and not page_states & {"personal", "skip"}
+       and {r["state"] for r in model["amex"]["rows"]} & {"personal", "skip"}, page_states)
     ok("build_site files", all(os.path.isfile(os.path.join(site, f)) for f in ("index.html", "plan.html", "vercel.json", ".vercelignore")),
        sorted(os.listdir(site)))
     ignore = open(os.path.join(site, ".vercelignore"), encoding="utf-8").read()

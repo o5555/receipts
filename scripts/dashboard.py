@@ -1120,6 +1120,8 @@ def build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_by_ref, pai
             state, step = "ready", "byggs in i nästa plan (month_end.py)"
         if state in ("planned", "held", "ready", "no-receipt") and not r["bas_account"]:
             step += "; konto saknas"
+        # where we looked is only meaningful on rows that still need a receipt
+        wants_receipt = not receipt and state not in ("personal", "skip", "needs-tag", "in-pleo")
         rows.append({
             "ref": r["ref"], "date": r["date"], "month": r["month"], "merchant": r["merchant"],
             "vendor": vendor_name(r["merchant"], r["amount_sek"], "SEK"), "amount_sek": r["amount_sek"],
@@ -1130,8 +1132,8 @@ def build_amex_rows(root, ledger, overrides, plans, receipt_map, arc_by_ref, pai
             "reimbursed_date": pay["date"] if pay else None,
             "booked": bool(voucher), "voucher": str(voucher) if voucher else None,
             "in_pleo": r["in_pleo"], "state": state, "state_label": AMEX_STATE_LABELS[state], "step": step,
-            "searched": (looked["text"] if looked else GMAIL_NOT_SEARCHED) if not receipt else None,
-            "searched_at": looked["date"] if (looked and not receipt) else None,
+            "searched": (looked["text"] if looked else GMAIL_NOT_SEARCHED) if wants_receipt else None,
+            "searched_at": looked["date"] if (looked and wants_receipt) else None,
         })
     rows.sort(key=lambda x: (x["date"], x["ref"]), reverse=True)
     return rows

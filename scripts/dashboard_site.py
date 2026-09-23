@@ -89,13 +89,16 @@ def encrypt(plaintext: bytes, key: str) -> str:
 
 # ----------------------------------------------------------------------------- page
 
+SITE_HIDDEN_STATES = ("personal", "skip")
+
+
 def page_payload(model):
     """The subset of the model the page needs, plus label tables so the JS stays dumb."""
     return {
         "generated": model["generated"], "today": model["today"], "entity_name": model["entity_name"],
         "sources": model["sources"], "summary": model["summary"], "todo": model["todo"],
-        # private purchases stay out of the page: Oscar does not want them listed
-        "amex": {"rows": [r for r in model["amex"]["rows"] if r["state"] != "personal"], "months": model["amex"]["months"],
+        # private purchases and payments/credits stay out of the page: Oscar wants only rows that can need action
+        "amex": {"rows": [r for r in model["amex"]["rows"] if r["state"] not in SITE_HIDDEN_STATES], "months": model["amex"]["months"],
                  "coverage_end": model["amex"]["coverage_end"], "next_month": model["amex"]["next_month"],
                  "next_month_csv_present": model["amex"]["next_month_csv_present"]},
         "pleo": {"rows": model["pleo"]["rows"], "months": model["pleo"]["months"], "totals": model["pleo"]["totals"],
