@@ -102,7 +102,7 @@ EXPECT = {  # ref -> (tag, why prefix)
     "CTFIX011": ("needs-tag", "pre-split charge"),
     "CTFIX012": ("business", "merchant rule Anthropic"),
     "CTFIX013": ("business", "merchant rule Oderland"),
-    "CTFIX014": ("needs-tag", "merchant rule Spotify"),
+    "CTFIX014": ("business", "merchant rule Spotify"),
     "CTFIX015": ("needs-tag", "pre-split charge"),
     "CTFIX016": ("business", "business card 1022 default (post-split)"),
     "CTFIX017": ("personal", "personal card 2004 default (post-split)"),
@@ -138,9 +138,9 @@ def main():
                         "--out-csv", out_csv, "--needs-tag-csv", needs_csv],
                        capture_output=True, text=True)
     ok("exit 0", p.returncode == 0, p.stderr)
-    ok("stdout counts", "21 rows: business 9, needs-tag 6, personal 4, skip 2; "
-       "business total 900,00 SEK" in p.stdout, p.stdout)
-    ok("stdout lists 6 needs-tag rows", p.stdout.count("\n  needs-tag: ") == 6, p.stdout)
+    ok("stdout counts", "21 rows: business 10, needs-tag 5, personal 4, skip 2; "
+       "business total 1 000,00 SEK" in p.stdout, p.stdout)
+    ok("stdout lists 5 needs-tag rows", p.stdout.count("\n  needs-tag: ") == 5, p.stdout)
     ok("stderr warns twice about bad override lines",
        p.stderr.count("skipped (need ref and a valid tag)") == 2, p.stderr)
     ok("stderr warns about the ref-less row", "1 rows without ref were dropped" in p.stderr, p.stderr)
@@ -183,7 +183,7 @@ def main():
 
     with open(needs_csv, encoding="utf-8", newline="") as fh:
         nrows = list(csv.DictReader(fh))
-    ok("needs-tag csv has 6 rows", len(nrows) == 6, len(nrows))
+    ok("needs-tag csv has 5 rows", len(nrows) == 5, len(nrows))
     ok("needs-tag csv swedish amounts", all(r["amount"] == "100,00 SEK" for r in nrows),
        [r["amount"] for r in nrows])
 
